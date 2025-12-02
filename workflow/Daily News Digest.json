@@ -1,0 +1,1196 @@
+{
+  "name": "Daily News Digest",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f19b706c-764b-420e-a71f-de6ac3b353e4",
+              "name": "add_field_example",
+              "value": "\"an example of input\"",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        19536,
+        8720
+      ],
+      "id": "9ba2af8d-b674-4ba0-903b-d86ffd471070",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract raw content\nconst raw = $json.message?.content || \"\";\n\n// Remove code block wrappers (```json ... ```)\nconst cleaned = raw\n  .replace(/```json\\s*/g, \"\")\n  .replace(/```/g, \"\")\n  .trim();\n\nlet parsed;\n\ntry {\n  parsed = JSON.parse(cleaned); // parsed = { articles: [...] }\n} catch (err) {\n  throw new Error(\"Failed to parse JSON. Cleaned content:\\n\" + cleaned);\n}\n\n// Ensure parsed.articles exists and is an array\nif (!parsed.articles || !Array.isArray(parsed.articles)) {\n  throw new Error(\"Expected parsed JSON to contain an 'articles' array.\");\n}\n\n// Return the clean structure\nreturn [\n  {\n    json: {\n      articles: parsed.articles\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        18992,
+        9024
+      ],
+      "id": "8d53d733-0f40-4697-84ec-ef241cf771a4",
+      "name": "Code19"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "="
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        20320,
+        8992
+      ],
+      "id": "1e70c6f2-06f6-4b0a-9082-704e058a4c91",
+      "name": "Twitter Node",
+      "executeOnce": false,
+      "alwaysOutputData": false,
+      "credentials": {
+        "openAiApi": {
+          "id": "fPkRB4FJNr3wCOg3",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You receive an array called “articles” from the input below. Each element is an article object with fields:\n\n- title\n- summary\n- link\n- tags\n- any previously added fields\n\nYour task:  \nFor EACH article, generate a LinkedIn post draft based on the title and summary.\n\nLINKEDIN POST REQUIREMENTS:\n- 2–5 sentences.\n- Start with a news-relevant hook based on the article title and summary.\n- If a natural and meaningful connection exists, tie it to Multimodal’s mission:\n  “Multimodal builds secure, integrated GenAI automation for complex workflows in Finance & Insurance, using enterprise-grade AI Agents trained on company data.”\n- Do NOT force a tie-in if it feels unnatural.\n- Do NOT fabricate facts not supported by the summary.\n- Do NOT reference the article author or publication date.\n- Should NOT sound like marketing; aim for expert commentary.\n\nOUTPUT FORMAT:\nReturn the SAME article objects, but add one field:\n  \"linkedin_post\": \"<generated post>\"\n\nExample final output format:\n{\n  \"articles\": [\n     {\n       \"title\": \"...\",\n       \"summary\": \"...\",\n       \"link\": \"...\",\n       \"tags\": { ... },\n       \"linkedin_post\": \"Your generated post here.\"\n     },\n     ...\n  ]\n}\n\nNow generate the updated articles array:\n\n=====================\nINPUT ARTICLES\n{{ JSON.stringify($input.all().map(i => i.json), null, 2) }}\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        19568,
+        9008
+      ],
+      "id": "125e67b7-3f42-4c62-832e-18db1405fe03",
+      "name": "Linkedin Node",
+      "executeOnce": false,
+      "alwaysOutputData": false,
+      "credentials": {
+        "openAiApi": {
+          "id": "fPkRB4FJNr3wCOg3",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Article Formatter\nNormalizes article fields: Cleans HTML, trims summaries, standardizes title/link/author fields for consistent downstream processing.",
+        "height": 224,
+        "width": 246
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -944,
+        -8672
+      ],
+      "typeVersion": 1,
+      "id": "51907f2a-6567-46cd-898c-0725cd938136",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  { \"json\": { \"feed\": \"https://arstechnica.com/ai/feed/\" } },\n  { \"json\": { \"feed\": \"https://www.theregister.com/software/ai_ml/headlines.atom\" } },\n  { \"json\": { \"feed\": \"https://venturebeat.com/category/ai/feed/\" } },\n  { \"json\": { \"feed\": \"https://techcrunch.com/category/artificial-intelligence/feed/\" } },\n  { \"json\": { \"feed\": \"https://www.wired.com/feed/rss\" } },\n  { \"json\": { \"feed\": \"https://www.cnbc.com/id/19854910/device/rss/rss.html\" } },\n  { \"json\": { \"feed\": \"https://www.insurancebusinessmag.com/us/rss/\" } },\n  { \"json\": { \"feed\": \"https://insurancejournal.com/rss/\" } },\n  { \"json\": { \"feed\": \"https://mckinsey.com/rss/\" } }\n];\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2272,
+        -8384
+      ],
+      "id": "c256df5c-0e9f-436b-b262-e84901b93559",
+      "name": "RSS Feed"
+    },
+    {
+      "parameters": {
+        "url": "={{$json[\"feed\"]}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        -1680,
+        -8064
+      ],
+      "id": "37a79bfa-57dd-4269-b01f-96c2823bdb7a",
+      "name": "RSS Read"
+    },
+    {
+      "parameters": {
+        "batchSize": 9,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -1984,
+        -8384
+      ],
+      "id": "0258a818-ba47-48a5-91f4-862c7d4e12ef",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8e1b888b-7795-4ff8-86ac-8eb916bd1b78",
+              "leftValue": "={{ new Date($json[\"isoDate\"]) }}",
+              "rightValue": "={{\n(() => { \n  const now = new Date();\n  const tz = 'America/New_York';\n  const fmt = new Intl.DateTimeFormat('en-US', {\n    timeZone: tz,\n    hour12: false,\n    year: 'numeric',\n    month: '2-digit',\n    day: '2-digit',\n    hour: '2-digit',\n    minute: '2-digit',\n    second: '2-digit'\n  });\n  const parts = fmt.formatToParts(now).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});\n  const localNow = new Date(`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`);\n\n  // Base “from” = previous 9 a.m. Eastern\n  const from = new Date(localNow);\n  from.setHours(9, 0, 0, 0);\n\n  // Determine day of week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)\n  const day = localNow.getDay();\n\n   if (day === 1 && localNow.getHours() <= 9) {\n    from.setDate(from.getDate() - 3);\n  } else if (localNow.getHours() <= 9) {\n    from.setDate(from.getDate() - 1);\n  }\n\n  return from.toISOString();\n})()\n}}\n\n",
+              "operator": {
+                "type": "dateTime",
+                "operation": "after"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1600,
+        -8400
+      ],
+      "id": "9eee8c1c-845e-46de-9edc-ef28b5c4806d",
+      "name": "Time_Filter",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get content from LLM node\nconst content = $json.message.content || \"\";\n\n// Escape HTML chars\nfunction esc(str) {\n  return str\n    .replace(/&/g, \"&amp;\")\n    .replace(/</g, \"&lt;\")\n    .replace(/>/g, \"&gt;\");\n}\n\nconst lines = content.split(\"\\n\");\n\n// Final HTML components\nlet htmlBlocks = [];\nlet currentArticle = null;\nlet mode = null; // \"linkedin\" or \"twitter\"\n\n// Render section headers\nfunction header(text) {\n  return `<h2 style=\"margin-top:24px;margin-bottom:6px;\">${esc(text)}</h2>`;\n}\n\n// Render entire article\nfunction renderArticle(a) {\n  return `\n<div style=\"margin-bottom:30px;\">\n  <h3 style=\"margin:0 0 6px 0;font-size:18px;\">\n    <a href=\"${a.link}\" style=\"color:#0366d6;text-decoration:none;\">${esc(a.title)}</a>\n  </h3>\n\n  <h4 style=\"margin:10px 0 4px 0;\">LinkedIn Post</h4>\n  <div style=\"white-space:pre-wrap; margin-bottom:12px;\">${esc(a.linkedin.trim())}</div>\n\n  <h4 style=\"margin:10px 0 4px 0;\">Twitter Post</h4>\n  <div style=\"white-space:pre-wrap;\">${esc(a.twitter.trim())}</div>\n</div>`;\n}\n\n// Main parsing loop\nlet i = 0;\nwhile (i < lines.length) {\n  const raw = lines[i];\n  const line = raw.trim();\n\n  // Section headers\n  if (line === \"📊 Daily Overview\" || line === \"📝 Summary\" || line === \"📰 Articles\") {\n    htmlBlocks.push(header(line));\n    i++;\n    continue;\n  }\n\n  // Detect article title (next line must contain Link:)\n  if (i + 1 < lines.length && lines[i + 1].trim().startsWith(\"Link:\")) {\n    if (currentArticle) htmlBlocks.push(renderArticle(currentArticle));\n\n    currentArticle = { title: line, link: \"\", linkedin: \"\", twitter: \"\" };\n    mode = null;\n    i++;\n    continue;\n  }\n\n  // Detect link\n  if (currentArticle && line.startsWith(\"Link:\")) {\n    currentArticle.link = line.replace(\"Link:\", \"\").trim();\n    i++;\n    continue;\n  }\n\n  // Detect LinkedIn Post label\n  if (currentArticle && line === \"LinkedIn Post:\") {\n    mode = \"linkedin\";\n    i++;\n    continue;\n  }\n\n  // Detect Twitter Post label\n  if (currentArticle && line === \"Twitter Post:\") {\n    mode = \"twitter\";\n    i++;\n    continue;\n  }\n\n  // CAPTURE LINKEDIN / TWITTER MULTILINE CONTENT CORRECTLY\n  if (currentArticle && mode) {\n    const next = lines[i + 1]?.trim() || \"\";\n\n    const isNextLabel =\n      next === \"LinkedIn Post:\" ||\n      next === \"Twitter Post:\" ||\n      next === \"📊 Daily Overview\" ||\n      next === \"📝 Summary\" ||\n      next === \"📰 Articles\" ||\n      next.startsWith(\"Link:\");\n\n    // Capture this line\n    if (mode === \"linkedin\") currentArticle.linkedin += raw + \"\\n\";\n    if (mode === \"twitter\") currentArticle.twitter += raw + \"\\n\";\n\n    // If next line changes mode → stop capturing\n    if (isNextLabel) mode = null;\n\n    i++;\n    continue;\n  }\n\n  // Normal paragraph outside article blocks (ignore blank lines)\n  if (line.length > 0) {\n    htmlBlocks.push(`<p>${esc(raw)}</p>`);\n  }\n\n  i++;\n}\n\n// ❗FLUSH LAST ARTICLE (this must be OUTSIDE the loop)\nif (currentArticle) htmlBlocks.push(renderArticle(currentArticle));\n\n// Build final HTML\nconst htmlEmail = `\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\" />\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; padding: 10px; }\n    a:hover { text-decoration: underline; }\n    strong { font-weight: bold; }\n  </style>\n</head>\n<body>\n  ${htmlBlocks.join(\"\\n\")}\n</body>\n</html>\n`;\n\nreturn {\n  json: {\n    emailBody: htmlEmail,\n    emailSubject: \"AI News Digest - \"\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5360,
+        -8416
+      ],
+      "id": "3ddcad19-6bb1-430b-9798-6fc3ad64d3cd",
+      "name": "Code22"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -2560,
+        -8384
+      ],
+      "id": "52ffabf6-61af-4097-8e0d-8f59e3a0949d",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "content": "## Time Filter\nGenerates the “start date” for today’s news digest:\n\nMonday → Friday 9 a.m.\n\nTue–Fri → Yesterday 9 a.m.\nUsed for filtering articles by publication time.",
+        "height": 208,
+        "width": 214
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1648,
+        -8640
+      ],
+      "typeVersion": 1,
+      "id": "97c0047a-b396-45c9-b4be-30dc2132d003",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Keyword Filter\n\nKeeps only articles whose title or snippet mention specific words\n(ex: AI, chatbot, LLM,etc.)",
+        "height": 208,
+        "width": 214
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1248,
+        -8656
+      ],
+      "typeVersion": 1,
+      "id": "2ed8ca69-dddf-49d1-bb42-089b075761a3",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "535c5d06-7471-4db2-bdae-625b9879d652",
+              "leftValue": "={{ $json[\"title\"] + \" \" + $json[\"contentSnippet\"] }}",
+              "rightValue": "\\bAI\\b|\\bchatbot\\b|\\bLLM\\b|\\bartificial intelligence\\b|(\\bAI\\b.*data\\s?centers?|data\\s?centers?.*\\bAI\\b)|\\bdata\\b",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1184,
+        -8416
+      ],
+      "id": "2eb132d9-6c42-447f-9f2f-b14585a4a0c9",
+      "name": "Keyword_Filter"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n  const data = item.json;\n\n  // Extract the summary or description text\n  let summary = data.summary || data.description || data.contentSnippet || \"\";\n\n  // Strip HTML tags if present\n  summary = summary.replace(/<[^>]*>/g, \"\");\n\n  // Trim overly long summaries (keep ~500 characters max)\n  if (summary.length > 500) {\n    summary = summary.slice(0, 500) + \"…\";\n  }\n\n  return {\n    json: {\n      title: data.title || data.headline || \"\",\n      link: data.link || data.url || \"\",\n      pubDate: data.pubDate\n        ? new Date(data.pubDate).toISOString()\n        : data.publishedAt\n        ? new Date(data.publishedAt).toISOString()\n        : \"\",\n      author: data.author || data.creator || data[\"dc:creator\"] || \"\",\n      summary,\n    }\n  };\n});\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -864,
+        -8432
+      ],
+      "id": "90e97e47-73e5-4990-8ef9-99d75d734930",
+      "name": "Article_Formatter"
+    },
+    {
+      "parameters": {
+        "content": "## Channel Classifier\n\nClassifies each article for Twitter/LinkedIn using platform-specific relevance rules.\nAdds a tags field that determines downstream routing.",
+        "height": 224,
+        "width": 246
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -528,
+        -8688
+      ],
+      "typeVersion": 1,
+      "id": "7cdc5e09-7338-4797-9941-ff2a786ee78c",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Your task is to classify each article into the channels where it should be posted.\n\nHere is the list of articles:\n{{ JSON.stringify($input.all(), null, 2) }}\n\nDo not modify or summarize the articles.\nAdd a \"tags\" field with booleans only.\n\n=====================\nCLASSIFICATION RULES\n=====================\n\n1. “twitter”\n\nAssign twitter = true ONLY if the article is genuinely buzzy and fits Twitter’s AI news ecosystem.\n\nTwitter-worthy stories include:\n- major AI announcements or model releases that would spark mainstream AI-community discussion\n- significant big-tech AI moves (OpenAI, Google, Microsoft, Meta, Anthropic, xAI, Nvidia, Amazon)\n  *only when the news is notable, surprising, or broadly discussed — not routine product updates*\n- major funding rounds, ecosystem shifts, or industry events with high visibility\n- large-scale or unusual AI security incidents, leaks, outages, or failures\n- stories with viral potential (controversial, dramatic, record-setting, or part of the AI zeitgeist)\n\nHeuristic:\n👉 **Would mainstream AI Twitter be actively talking about this?**\n\nTwitter is NOT for slow, analytical, or niche enterprise commentary unless the story itself is widely discussed news.\n\n--------------------------------------------------------------\n\n2. “linkedin”\n\nAssign linkedin = true ONLY if the article is clearly useful to real-world professionals in:\nfinance, insurance, banking, asset management, compliance, risk, or enterprise operations.\n\nBefore tagging, apply this PRIMARY FILTER:\n👉 **Is the article directly relevant to decision-making in finance or insurance?**\nIf not clearly relevant, set linkedin = false.\n\nLinkedIn-worthy content includes (ONLY when tied to finance/insurance implications):\n- enterprise AI adoption, governance, regulation, security, or risk management\n- AI applied to financial or insurance workflows (claims, underwriting, fraud, compliance, credit, etc.)\n- enterprise AI tools/platforms with practical relevance for regulated industries\n- infrastructure trends (cloud/compute/energy) *only when they materially affect corporate IT strategy*\n- industry analysis (McKinsey/BCG/Accenture) *only when AI + finance/insurance focused*\n- credible insights on AI’s impact on productivity, workflows, or business transformation\n- fundraises or case studies in AI for finance or insurance\n\nLinkedIn is NOT for:\n👉 general AI funding, valuations, stock moves, consumer features, developer tools, or broad tech trends unless they *directly* affect finance/insurance operations.\n\nHeuristic:\n👉 **Would a non-technical finance or insurance professional find this relevant to their work?**\n\n--------------------------------------------------------------\n\n3. Dual-platform (twitter + linkedin)\n\nAssign both = true ONLY when BOTH conditions hold:\n\n(A) Strong public AI visibility (Twitter)\n   The story is buzzy, widely discussed, or hype-driving.\n\n(B) Clear enterprise/industry relevance (LinkedIn)\n   The story materially affects enterprise adoption, risk, regulation, or finance/insurance workflows.\n\nDual-platform examples:\n- major AI model releases with explicit enterprise implications\n- governance/regulatory updates with major corporate impact\n- AI security incidents with compliance or risk-management relevance\n- enterprise product launches that also generate broad AI-community buzz\n\nDual tagging is **uncommon**.\n👉 If in doubt, choose a single channel rather than both.\n\n--------------------------------------------------------------\n\n4. If neither applies → set both to false.\n\n=====================\nOUTPUT FORMAT\n=====================\n\nReturn the same array of article objects, adding:\n\n\"tags\": {\n  \"twitter\": true/false,\n  \"linkedin\": true/false\n}\n\nReturn ONLY the JSON array.\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -544,
+        -8432
+      ],
+      "id": "62a84cc0-2b7b-45a5-963d-492917c64387",
+      "name": "Channel_Classifier",
+      "executeOnce": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "fPkRB4FJNr3wCOg3",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// -------------------------\n// 1. Parse LLM JSON Output\n// -------------------------\nconst raw = $json.message?.content ?? \"\";\n\n// Remove markdown fences in case LLM used ```json ... ```\nconst cleaned = raw\n  .replace(/```json/g, \"\")\n  .replace(/```/g, \"\")\n  .trim();\n\n// Parse the JSON array of articles\nlet articles;\ntry {\n  articles = JSON.parse(cleaned);\n} catch (e) {\n  throw new Error(\"❌ Failed to parse LLM JSON:\\n\" + cleaned);\n}\n\n// -------------------------\n// 2. Bucket the articles\n// -------------------------\n\nconst twitter = [];\nconst linkedin = [];\nconst both = [];\n\nfor (const a of articles) {\n  const t = a.tags?.twitter === true;\n  const l = a.tags?.linkedin === true;\n\n  if (t && l) {\n    both.push(a);\n  } else if (t) {\n    twitter.push(a);\n  } else if (l) {\n    linkedin.push(a);\n  }\n}\n\n// -------------------------\n// 3. Output 3 buckets\n// -------------------------\n\nreturn [\n  { json: { channel: \"twitter\", articles: twitter }},\n  { json: { channel: \"linkedin\", articles: linkedin }},\n  { json: { channel: \"both\", articles: both }},\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -48,
+        -8432
+      ],
+      "id": "5424d0ff-32d2-4bfb-ab19-94d8e564e671",
+      "name": "Channel Router"
+    },
+    {
+      "parameters": {
+        "content": "## Channel Router\n\nTakes the LLM’s JSON output, cleans it, parses it, and splits articles into three buckets:\ntwitter, linkedin, and both.",
+        "height": 224,
+        "width": 246
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -128,
+        -8672
+      ],
+      "typeVersion": 1,
+      "id": "fd9ecc3a-2ef4-4ce1-bcaa-86d0800e60bf",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input: array of objects [{channel, articles}]\n\nconst buckets = $input.all().map(i => i.json);\n\n// Find the \"twitter\" bucket\nconst twitter = buckets.find(b => b.channel === \"twitter\");\n\n// Output must be an array of items → wrap the articles\nreturn twitter.articles.map(a => ({ json: a }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        -8784
+      ],
+      "id": "fea7f31a-ffd3-4c67-8f04-f45ff28b226c",
+      "name": "Twitter Bucket"
+    },
+    {
+      "parameters": {
+        "jsCode": "const buckets = $input.all().map(i => i.json);\nconst linkedin = buckets.find(b => b.channel === \"linkedin\");\nreturn linkedin.articles.map(a => ({ json: a }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        -8432
+      ],
+      "id": "abae5e25-7c92-4d42-8a5e-5dcc7945ab06",
+      "name": "Linkedin Bucket"
+    },
+    {
+      "parameters": {
+        "jsCode": "const buckets = $input.all().map(i => i.json);\nconst both = buckets.find(b => b.channel === \"both\");\nreturn both.articles.map(a => ({ json: a }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        -8048
+      ],
+      "id": "ab26590b-9938-409b-b004-df3acb9b247f",
+      "name": "Twitter + Linkedin Bucket"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Your task is to score, cluster, deduplicate, and rank the following articles for a Twitter (X) audience.\n\n=====================\nAUDIENCE PROFILE\n\nPeople who:\n\nfollow breaking AI news and hype cycles\n\nenjoy rapid-fire updates about big tech and new models\n\ncare about viral moments, shocks, and dramatic narratives\n\nwork in tech, startups, AI, or engineering\n\n=====================\nSCORING DIMENSIONS (0–100)\n\nAssign a twitter_score from 0 to 100 using these weighted factors:\n\n1. Buzz / Trending Heat (0–35 pts)\n\nMatch with what AI Twitter is reacting to:\n\nmajor model releases\n\nbig-tech battles\n\nviral moments\n\ndrama, leaks, failures\n\nanything blowing up on the timeline\n\n2. Virality & Engagement Potential (0–25 pts)\n\nLikelihood of people quote-tweeting, arguing, or memeing it:\n\ncontroversial claims\n\nrecord metrics\n\ngiant valuations\n\nshocking failures\n\nWTF moments\n\n3. Novelty / Breakthrough Factor (0–20 pts)\n\nIs it truly new or surprising?\nHigh points for:\n\nflagship model launches\n\nfirst-ever events\n\nleaked capabilities\n\nnew competitors\n\n4. Tech Ecosystem Impact (0–15 pts)\n\nDoes it move the AI ecosystem?\n\nmajor funding\n\nGPU constraints\n\ndatacenter expansions\n\nR&D investments\n\n5. Headline Punchiness / X-Fit (0–5 pts)\n\nShort, spicy, shareable headlines get a small boost.\n\nScoring rule: integer 0–100.\n\n=====================\nSTEP 1 — CLUSTERING SIMILAR ARTICLES\n\nSTRICT CLUSTERING RULE (MANDATORY)\n\nYou must only cluster articles when they refer to the exact same news event.\n\nTwo articles belong to the same cluster ONLY IF all of the following conditions are true:\n\nThey describe the same product or feature announcement,\n\nfrom the same company,\n\nreleased on the same day,\n\ncontaining the same core facts,\n\nwith differences limited to framing or editorial style.\n\nCluster only if the articles describe the same product, same release, same update, same announcement, or are rewrites from different outlets.\n\nWhen in doubt: \n\n1. Look at the summary to investigate the articles' content\n2. If you are still unsure -> DO NOT CLUSTER.\n\nOver-clustering is far more harmful than under-clustering.\n\n=====================\nSTEP 2 — BEST-OF-CLUSTER DEDUPING (IMPORTANT)\n\nFrom each cluster, keep only ONE article.\n\nCluster Winner Selection Rule (in order of priority):\n\nA. Source Priority (applied FIRST, before any scoring):\n\nChoose the representative using this strict hierarchy:\n\n1. TechCrunch\n2. VentureBeat\n2. Wired / The Verge  \n3. Ars Technica  \n4. CNBC / Reuters  \n5. All other outlets  \n\nHighest-priority source ALWAYS wins, even if its score is lower.\n\nB. If two articles are from equal-priority sources:\n→ Choose the one with the higher twitter_score.\n\nC. All other articles in the cluster:\n→ Set \"rank\": null\n→ Keep \"twitter_score\" included, but they must not appear in the ranked list.\n\nThis prevents redundant duplicates and avoids monopolizing the top N spots.\n\n=====================\nSTEP 3 — RANKING\n\nAfter deduplication, perform these steps in this exact order:\n\nCollect only the cluster winners\n(articles whose rank is NOT null).\n\nSort these remaining articles in descending order of twitter_score.\nThis sorting step is mandatory.\n\nAssign ranks strictly based on this sorted order:\nrank 1 = highest twitter_score\nrank 2 = second-highest\nrank 3 = third-highest\n… and so on.\n\nSource priority must NOT play any role in this ranking stage.\nIt applies ONLY inside cluster selection, not to global ranking.\n\nArticles with \"rank\": null must remain unranked and must not influence the ordering.\n\n=====================\nINPUT ARTICLES\n{{ JSON.stringify($input.all().map(i => i.json), null, 2) }}\n\n=====================\nOUTPUT FORMAT (STRICT)\n\nReturn a single JSON array, where each article object gets two new fields:\n\n\"twitter_score\": <0–100 integer>\n\n\"rank\": <integer or null>\n\nDo NOT:\n\nalter any article fields\n\nremove any articles\n\nadd commentary or explanation\n\ninclude code fences\n\nReturn ONLY the JSON array."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1104,
+        -8784
+      ],
+      "id": "b31cf067-0d1a-4c14-ab22-e1430fe14566",
+      "name": "Twitter Ranking Engine",
+      "executeOnce": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "fPkRB4FJNr3wCOg3",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Your task is to score, cluster, deduplicate, and rank the following articles for a LinkedIn audience made up of non-technical professionals working in finance and insurance.\n\n=====================\n\nAUDIENCE PROFILE\n\nProfessionals who:\n\nwork in banking, financial services, insurance, asset management, fintech, or risk/compliance\n\ndo not work in AI, engineering, or data science\n\nwant to understand how AI affects their work, company, and industry\n\nvalue practical insights about business impact and operational efficiency\n\ncare about AI regulation, compliance, governance, risk, and responsible adoption\n\nprefer enterprise relevance over hype or consumer tech news\n\nImportant:\nThis audience also cares about broader enterprise AI developments — including agents, enterprise automation platforms, productivity tools, and workplace AI shifts — if they affect enterprise workflows or decision-making.\n\n=====================\n\nRELEVANCE SCORING (0–100)\n\nAssign a linkedin_score (0–100) based on:\n\n1. Direct Enterprise Relevance (0–25 pts)\n\nEffect on banks, insurers, financial institutions, or regulated enterprises.\nIncludes adjacent regulated fields (tax, accounting, audit, legal-tech, consulting) when workflows/risk patterns are analogous.\n\n2. Operational / Workflow Impact (0–25 pts)\n\nEffect on regulated or professional workflows such as:\nclaims, underwriting, fraud, compliance, credit, risk, audits, tax analysis, document workflows, expert decision support.\n\nAward highest points for automation, productivity gains, or replacement of manual expert tasks.\n\n3. Industry Transformation Signal (0–25 pts)\n\nShifts in how regulated or enterprise industries will operate or deliver value.\n\nHigh scores for agentic workflows, business-model changes, or disruption of expert-driven processes.\n\n4. Practical Enterprise Applicability (0–25 pts)\n\nTools, deployments, or capabilities that a financial/insurance professional could realistically use.\n\n=====================\n\nSTEP 1 — CLUSTERING SIMILAR ARTICLES\n\nSTRICT CLUSTERING RULE (MANDATORY)\n\nYou must only cluster articles when they refer to the exact same news event.\n\nTwo articles belong to the same cluster ONLY IF all of the following conditions are true:\n\nThey describe the same product or feature announcement,\n\nfrom the same company,\n\nreleased on the same day,\n\ncontaining the same core facts,\n\nwith differences limited to framing or editorial style.\n\nCluster only if the articles describe the same product, same release, same update, same announcement, or are rewrites from different outlets.\n\nWhen in doubt: \n\n1. Look at the summary to investigate the articles' content\n2. If you are still unsure -> DO NOT CLUSTER.\n\nOver-clustering is far more harmful than under-clustering.\n\n=====================\n\nSTEP 2 — BEST-OF-CLUSTER DEDUPING\n\nKeep only one article per cluster.\n\nCluster Winner Selection Rule (in order of priority):\nA. Source Priority — applied first, before scoring\n\nUse this exact hierarchy:\n\n1. TechCrunch\n2. VentureBeat\n2. Wired / The Verge  \n3. Ars Technica  \n4. CNBC / Reuters  \n5. All other outlets  \n\nThe highest-priority source ALWAYS wins, even if it has a lower score.\n\nB. If multiple articles have equal source priority:\n\n→ Choose the one with the higher linkedin_score.\n\nC. All other articles in the cluster:\n\n→ Must keep \"linkedin_score\"\n→ Must use \"rank\": null\n→ Must not appear in the ranked list\n\n=====================\n\nSTEP 3 — RANKING (MANDATORY ORDER OF OPERATIONS)\n\nAfter deduplication, follow these steps exactly:\n\nCollect only cluster winners\n(articles whose rank is not null)\n\nSort these articles in descending order of linkedin_score\nThis sorting step is mandatory.\n\nAssign ranks strictly according to sorted order:\n\nrank 1 = highest score\n\nrank 2 = second-highest\n\nrank 3 = third-highest\n\nand so on\n\nSource priority must NOT affect ranking.\nIt applies ONLY inside cluster selection.\n\nArticles with \"rank\": null remain unranked.\n\n=====================\n\nINPUT ARTICLES\n{{ JSON.stringify($input.all().map(i => i.json), null, 2) }}\n\n\n=====================\n\nOUTPUT FORMAT (STRICT)\n\nReturn a single JSON array with each article containing:\n\n\"linkedin_score\": <0–100 integer>\n\n\"rank\": <integer or null>\n\nDo not:\n\nalter any other fields\n\nremove articles\n\nadd commentary or explanation\n\nwrap output in code fences\n\nReturn ONLY the JSON array."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1104,
+        -8432
+      ],
+      "id": "d4d1ca86-a73f-4541-a9fe-2adf8bedbad2",
+      "name": "Linkedin Ranking Engine",
+      "executeOnce": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "fPkRB4FJNr3wCOg3",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Your task is to score, cluster, deduplicate, and rank the following articles based on how well they perform on BOTH Twitter (X) and LinkedIn.\n\nTop-ranked articles must be strong on BOTH platforms:\n- Twitter: buzz, novelty, virality, hype-cycle fit\n- LinkedIn: enterprise relevance, business impact, professional applicability\n\n========================================\nAUDIENCE CONTEXT (BOTH PLATFORMS)\n========================================\n\nTWITTER (X) VALUES:\n- trending AI announcements \n- hype-cycle moments (new models, failures, drama, competition)\n- virality: controversy, hot takes, emotional engagement\n- novelty, breakthroughs, leaks\n- big-tech news (OpenAI, Google, Microsoft, Anthropic, xAI, Meta, Nvidia)\n\nLINKEDIN VALUES:\n- impact on enterprises, operations, workflows\n- relevance to finance, insurance, banking, asset management, compliance\n- business implications: ROI, productivity, governance, regulation, risk\n- practical tools and enterprise-grade AI capabilities\n- credibility and clarity over hype\n\n========================================\nDUAL-PLATFORM RELEVANCE SCORE (0–100)\n========================================\nAssign a dual_score (0–100) using the following weighted dimensions:\n\n1. Cross-Platform Significance (0–30 pts)\n   Does the article matter simultaneously:\n   - to the public AI conversation on Twitter?\n   - AND to enterprise/regulated industries on LinkedIn?\n\n2. Enterprise Relevance (0–25 pts)\n   Impact on:\n   - finance, insurance, banking, compliance, risk\n   - or analogous regulated workflows (tax, audit, legal, accounting)\n\n3. Buzz, Trend & Virality Potential (0–20 pts)\n   Twitter-driven appeal:\n   hype, shock, novelty, big-tech battles, viral moments\n\n4. Professional Insight & Applicability (0–15 pts)\n   Practical workflows:\n   compliance, risk, audits, operational change, productivity, agentic workflows\n\n5. Narrative Strength & Shareability (0–10 pts)\n   Clear, strong, compelling headlines that work on both platforms\n\n========================================\nSTEP 1 — CLUSTERING SIMILAR ARTICLES\n========================================\n\nSTRICT CLUSTERING RULE (MANDATORY)\n\nYou must only cluster articles when they refer to the exact same news event.\n\nTwo articles belong to the same cluster ONLY IF all of the following conditions are true:\n\nThey describe the same product or feature announcement,\n\nfrom the same company,\n\nreleased on the same day,\n\ncontaining the same core facts,\n\nwith differences limited to framing or editorial style.\n\nCluster only if the articles describe the same product, same release, same update, same announcement, or are rewrites from different outlets.\n\nWhen in doubt: \n\n1. Look at the summary to investigate the articles' content\n2. If you are still unsure -> DO NOT CLUSTER.\n\nOver-clustering is far more harmful than under-clustering.\n\n========================================\nSTEP 2 — BEST-OF-CLUSTER DEDUPING\n========================================\nKeep ONLY ONE article per cluster using this strict selection order:\n\nA. SOURCE PRIORITY (applied FIRST)\n1. TechCrunch\n2. VentureBeat\n2. Wired / The Verge  \n3. Ars Technica  \n4. CNBC / Reuters  \n5. All other outlets  \n\nThe highest-priority source ALWAYS wins — even if its score is lower.\n\nB. If multiple cluster members have equal source priority:\n   → Choose the one with the highest dual_score.\n\nC. All other cluster members:\n   → Keep dual_score  \n   → Set \"rank\": null  \n   → They MUST NOT appear in the ranked list.\n\n========================================\nSTEP 3 — RANKING (MANDATORY ORDER)\n========================================\nAfter deduplication:\n\n1. Keep only articles whose rank is NOT null  \n2. Sort them by descending dual_score  \n3. Assign ranks strictly based on this sorted order:\n\nrank 1 = highest score  \nrank 2 = second-highest  \nrank 3 = third-highest  \n… and so on  \n\nSource priority MUST NOT influence the ranking stage.\n\nArticles with \"rank\": null remain unranked.\n\n========================================\nINPUT ARTICLES\n========================================\n{{ JSON.stringify($input.all().map(i => i.json), null, 2) }}\n\n========================================\nOUTPUT FORMAT (STRICT)\n========================================\nReturn a single JSON array where each article includes:\n\n\"dual_score\": <0–100 integer>  \n\"rank\": <integer or null>\n\nDo NOT:\n- alter any other fields  \n- remove articles  \n- add commentary  \n- add markdown or code fences  \n\nReturn ONLY the JSON array.\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1120,
+        -8048
+      ],
+      "id": "268e17df-d102-4d97-bf62-4d5e49ed77ef",
+      "name": "Twitter + Linkedin Ranking Engine",
+      "executeOnce": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "fPkRB4FJNr3wCOg3",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Ranking Engines (Twitter / LinkedIn / Dual)\n\nRanking Engines\nScore → remove duplicates → rank articles for each channel.",
+        "height": 208,
+        "width": 246
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1104,
+        -9024
+      ],
+      "typeVersion": 1,
+      "id": "d7ea31f4-0654-4401-a5dc-0036a165ff6b",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "jsCode": "// items = array of 3 (or more) inputs from the merge\n\nconst twitter = [];\nconst linkedin = [];\nconst both = [];\n\n// Each input is a JSON string array inside message.content\nfor (const input of items) {\n  try {\n    const arr = JSON.parse(input.json.message.content);\n\n    // Detect category based on score fields inside first item\n    const first = arr[0];\n\n    if (first.twitter_score !== undefined) {\n      twitter.push(...arr);\n    } else if (first.linkedin_score !== undefined) {\n      linkedin.push(...arr);\n    } else if (first.dual_score !== undefined) {\n      both.push(...arr);\n    }\n\n  } catch(e) {\n    // ignore errors\n  }\n}\n\nreturn [\n  {\n    json: {\n      twitter,\n      linkedin,\n      both\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2192,
+        -8432
+      ],
+      "id": "b682f5a4-2e69-4ca9-84ed-f809dddb4b66",
+      "name": "Ranked Results Merger"
+    },
+    {
+      "parameters": {
+        "content": "## Ranked Results Merger\n\nCombines the ranked outputs (Twitter, LinkedIn, Dual) into one unified structure for final processing.",
+        "height": 240,
+        "width": 246
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2128,
+        -8688
+      ],
+      "typeVersion": 1,
+      "id": "46af3060-c218-4040-ac20-a7b01982c52a",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You receive three article categories: twitter, linkedin, and both.\nEach is an array of articles. Each article contains:\ntitle, link, pubDate, author, summary, tags, and a score field.\n\nSelection rules:\n\n1. **Filter**: Only consider articles with score >= 80.\n   - twitter uses twitter_score\n   - linkedin uses linkedin_score\n   - both uses dual_score\n\n2. **Primary quotas**:\n   - Twitter: select up to 3 top-scoring articles\n   - LinkedIn: select up to 5 top-scoring articles\n   - Both: select up to 7 top-scoring articles\n   - Important: ignore the articles whose \"rank\" is null\n\n3. **Fill missing from other categories**:\n   If any category has fewer than its quota, fill the deficit using:\n     - highest remaining scores across all categories\n     - without duplicating the same article (use link to dedupe)\n\n4. **Final total output**:\n   - Must contain between 8 and 15 articles if at least 8 valid articles exist after applying filtering, quotas, and backup selection.\n    - If fewer than 8 valid articles exist in total, return all available valid articles (do not generate or include anything not present in the input).\n   - Ordered strictly descending by score (highest first).\n\n\n5. **Output format**:\n   Return:\n   {\n     \"articles\": [\n        { ...full article object... },\n        ...\n     ]\n   }\n\nNo commentary. No explanation. Just the JSON.\n\n\n=====================\nINPUT ARTICLES\n{{ JSON.stringify($input.all().map(i => i.json), null, 2) }}\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        2544,
+        -8432
+      ],
+      "id": "d05d9cde-413a-4329-92b0-29de2dc89c07",
+      "name": "Curator Engine",
+      "executeOnce": false,
+      "alwaysOutputData": false,
+      "credentials": {
+        "openAiApi": {
+          "id": "fPkRB4FJNr3wCOg3",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Curator Engine\n\nApplies score thresholds, enforces channel quotas,\nfills gaps with top remaining articles, removes duplicates,\nand outputs 8–15 final ranked articles.",
+        "height": 240,
+        "width": 246
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2560,
+        -8688
+      ],
+      "typeVersion": 1,
+      "id": "0348e0ec-d61d-486d-8bae-c43df1ad14e2",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract raw content\nconst raw = $json.message?.content || \"\";\n\n// Remove code block wrappers (```json ... ```)\nconst cleaned = raw\n  .replace(/```json\\s*/g, \"\")\n  .replace(/```/g, \"\")\n  .trim();\n\nlet parsed;\n\ntry {\n  parsed = JSON.parse(cleaned); // parsed = { articles: [...] }\n} catch (err) {\n  throw new Error(\"Failed to parse JSON. Cleaned content:\\n\" + cleaned);\n}\n\n// Ensure parsed.articles exists and is an array\nif (!parsed.articles || !Array.isArray(parsed.articles)) {\n  throw new Error(\"Expected parsed JSON to contain an 'articles' array.\");\n}\n\n// Return the clean structure\nreturn [\n  {\n    json: {\n      articles: parsed.articles\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3136,
+        -8432
+      ],
+      "id": "3cfc5e71-ea97-403d-8281-d0d0d366fb0e",
+      "name": "JSON Cleaner"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You generate concise, high-quality LinkedIn draft posts for multiple articles.\n\nYou will receive an array of article objects.  \nFor each article, you must decide if it should follow Case A (tied to Multimodal) or Case B (general insight).\nThen return the SAME article object but add a new field:\n\n\"linkedin_post\": \"<generated post>\"\n\nDo NOT merge articles.  \nDo NOT skip any article.  \nProduce one draft post per article, no exceptions.\n\n\n====================================================\nDECISION LOGIC\n====================================================\n\nFor each article, determine:\n\nCASE A — The article can be naturally, meaningfully connected to what Multimodal does.\n\nThis applies when the article is about:\n- AI agents, agentic workflows, automation\n- enterprise AI, AI infrastructure, connectors, orchestration\n- LLM platforms (OpenAI, Anthropic, Google, etc.)\n- workflow automation in finance or insurance\n- document AI, unstructured data, RAG, search, decisioning\n- enterprise governance, security, compliance\n- topics that Multimodal or AgentFlow could reasonably comment on\n\nCASE B — The article is NOT meaningfully related to Multimodal.\n\nUse human-level judgment.  \nIf the connection feels forced, trivial, or artificial → choose Case B.\n\nCase A should only be applied when the article clearly intersects with agentic AI, enterprise AI infrastructure, or finance/insurance workflows. When in doubt, choose Case B.\n\n====================================================\nPOST REQUIREMENTS\n====================================================\n\nCASE A (tie to Multimodal only when it feels natural)\n- Summarize the article with a clear insight.\n- If appropriate, explain why it matters for finance/insurance enterprises.\n- Optionally mention ONE Multimodal/AgentFlow capability or perspective.\n- Keep the post concise: 5–8 lines max.\n- Use the tone of this example WITHOUT copying structure or phrases:\n\n    “OpenAI’s Agent Builder launch marks an exciting milestone…\n\n    Real business impact doesn’t come from prompts alone—it comes from context + LLM + integrations…\n\n    That’s why platforms like AgentFlow matter…”\n\nCASE B (general insightful post)\n- Provide a short, engaging reflection on the article.\n- Highlight the key idea or tension.\n- No reference to Multimodal.\n- Keep it concise: 3–6 lines.\n\n====================================================\nCOMPANY CONTEXT (for Case A only)\n====================================================\n\nMultimodal is an enterprise AI company behind AgentFlow, an agentic AI platform that automates complex, mission-critical workflows in finance and insurance using specialized agents for process, search, decisioning, and content generation. Its mission is to redesign the future of work by enabling enterprises to capture institutional knowledge, improve operations, and securely deploy production-grade agentic AI. AgentFlow provides multi-agent orchestration, verticalized AI libraries, schema-aware ingestion, workflow configuration tools, a business UI for subject matter experts, strong governance and auditability, confidence scoring, and an API-first architecture with cloud or on-prem deployment. Multimodal solves challenges like knowledge loss, fragmented AI tooling, regulatory constraints, and slow manual operations, supporting use cases such as underwriting, lending, claims, KYC, due diligence, policy administration, and conversational support workflows.\n\n====================================================\nOUTPUT FORMAT\n====================================================\n\n\nReturn the SAME article objects, but add one field:\n  \"linkedin_post\": \"<generated post>\"\n\nExample final output format:\n{\n  \"articles\": [\n     {\n       \"title\": \"...\",\n       \"summary\": \"...\",\n       \"link\": \"...\",\n       \"tags\": { ... },\n       \"linkedin_post\": \"Your generated post here.\"\n     },\n     ...\n  ]\n}\n\n\nNow generate the updated articles array:\n\n=====================\nINPUT ARTICLES\n{{ JSON.stringify($input.all().map(i => i.json), null, 2) }}\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        3632,
+        -8576
+      ],
+      "id": "4c34aaaa-a8f4-4eef-a07a-a2f4521ac1c9",
+      "name": "LinkedIn Post Generator",
+      "executeOnce": false,
+      "alwaysOutputData": false,
+      "credentials": {
+        "openAiApi": {
+          "id": "fPkRB4FJNr3wCOg3",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You generate concise, high-impact, Twitter-style draft posts for multiple articles.\n\nYou will receive an array of article objects.  \nFor each article, determine whether it follows Case A (tied to Multimodal) or Case B (general tech insight).  \nThen return the SAME article object with an added field:\n\n\"twitter_post\": \"<generated tweet>\"\n\nProduce ONE tweet per article. Never skip or merge articles.\n\n====================================================\nDECISION LOGIC\n====================================================\n\nCASE A — The article can be naturally, meaningfully connected to what Multimodal does.\n\nThis applies when the article involves:\n- AI agents, agentic workflows, automation\n- enterprise AI, AI infrastructure, connectors, orchestration\n- LLM platforms (OpenAI, Anthropic, Google, etc.)\n- workflow automation in finance or insurance\n- document AI, unstructured data, RAG, search, decisioning\n- AI governance, auditability, compliance\n- topics Multimodal or AgentFlow could reasonably comment on\n\nCASE B — The article is general tech/AI news with no natural connection to Multimodal.\n\nIf the connection feels forced → choose Case B.\n\n====================================================\nSTYLE REQUIREMENTS (VERY IMPORTANT)\n====================================================\n\nFOR BOTH CASES:\n- MUST start with a hook (e.g., “This is wild…”, “JUST IN:”, “Insane.”, “Wait… what?”).\n- Write in short punchy lines (like the examples).\n- Keep it crisp, no long paragraphs.\n- No threads.\n\nEMOJIS:\n- Case A → NO emojis  \n- Case B → Emojis allowed and encouraged, but not excessive\n\nMENTIONING MULTIMODAL:\n- Case A → MUST include \"@MultimodalAI\" exactly once  \n- Case B → MUST NOT mention Multimodal at all\n\n====================================================\nCASE A TONE & EXAMPLE\n====================================================\n\nCase A tweets should feel like this (DO NOT copy verbatim):\n\nExample:\nIn banking, trust = everything.\n\nAI can’t just give an answer - it needs to show receipts.\n\nAudit trails.\n\nProof regulators can check.\n\nThat’s how we at \n@MultimodalAI\n build AI systems for finance companies.\n\nCASE A FORMAT RULES:\n- Open with a hook if possible.\n- Summarize the news in 1–2 punchy lines.\n- Explain why it matters for enterprise AI, finance, or insurance.\n- Include @MultimodalAI exactly once.\n- No emojis.\n\n====================================================\nCASE B TONE & EXAMPLES\n====================================================\n\nCase B tweets should feel like this (follow tone + structure):\n\nExample 1:\nJUST IN: An AI detector just flagged the 1776 Declaration of Independence as 99.99% AI-written.\n\nEither they had ChatGPT back in 1776 or the AI detectors don't work properly.\n\nJust think of thousands of students who were falsely accused of using AI.\n\nExample 2:\nThis is WILD.\n\nGoogle's new Gemini 3 just came out and people are already using it to:\n\n- create mind-blowing websites\n- build apps\n- create games\n\nOne guy built this Minecraft tower defense game 🤯\n\nCASE B FORMAT RULES:\n- MUST include emojis.\n- Start with a bold hook.\n- Keep it energetic, surprising, and engaging.\n- Do NOT mention MultimodalAI.\n- Follow the same crisp structure.\n\n====================================================\nCOMPANY CONTEXT (used only in Case A)\n====================================================\n\nMultimodal is an enterprise AI company behind AgentFlow, an agentic AI platform that automates complex, mission-critical workflows in finance and insurance using specialized agents for process, search, decisioning, and content generation. AgentFlow enables enterprises to capture institutional knowledge, orchestrate multi-agent workflows, leverage verticalized AI libraries, apply schema-aware ingestion, integrate human review, and maintain strong governance and auditability within customer-controlled environments.\n\n====================================================\nOUTPUT FORMAT\n====================================================\n\nReturn the same article objects, but add:\n\n\"twitter_post\": \"<generated tweet>\"\n\nFinal output:\n{\n  \"articles\": [\n    { ... , \"twitter_post\": \"...\" },\n    { ... , \"twitter_post\": \"...\" }\n  ]\n}\n\nNow generate the updated articles array:\n\n=====================\nINPUT ARTICLES\n{{ JSON.stringify($input.all().map(i => i.json), null, 2) }}\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        3648,
+        -8192
+      ],
+      "id": "dd0d1dcf-8f17-42f7-9599-815901c9eefe",
+      "name": "Twitter Post Generator",
+      "executeOnce": false,
+      "alwaysOutputData": false,
+      "credentials": {
+        "openAiApi": {
+          "id": "fPkRB4FJNr3wCOg3",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1760,
+        -8448
+      ],
+      "id": "c2f6ba5c-0e85-41c6-b5a6-5ffe3541a1eb",
+      "name": "Merge Results"
+    },
+    {
+      "parameters": {
+        "content": "## Post Generators (LinkedIn & Twitter)\n\nCreate platform-specific draft posts for each article.\n• LinkedIn → professional insight, case-based tone  \n• Twitter → concise, buzzy, viral-fit summaries  ",
+        "height": 240,
+        "width": 246
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        3648,
+        -8848
+      ],
+      "typeVersion": 1,
+      "id": "5e5876c2-92a8-410e-8e47-80f30058d501",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You receive multiple inputs after a Merge node.\nEach input contains an object with a key \"articles\" that holds an array of article objects.\n\nEach version of the articles may include different fields:\n\nOne version contains \"linkedin_post\"\n\nOne version contains \"twitter_post\"\n\nBoth versions share:\n\njson.title\n\njson.link\n\njson.pubDate\n\njson.summary\n\ntags\n\nYour task is to merge the LinkedIn and Twitter versions of each article into one unified object per article, using this logic:\n\n====================================================\nMERGE RULES\n\nUse the article's json.title + json.link as the unique identifier.\nTreat these as the same article even if the inputs appear in different order.\n\nFor each unique article, create one final unified object containing ONLY the fields:\n\n{\n  \"title\": \"...\",\n  \"link\": \"...\",\n  \"pubDate\": \"...\",\n  \"summary\": \"...\",\n  \"linkedin_post\": \"...\",   // if present, else null\n  \"twitter_post\": \"...\"     // if present, else null\n}\n\n\nIf a field is missing in one source, but present in another, preserve the one that EXISTS.\n\nIgnore all other fields (pairedItem, scores, rank, tags, etc.).\n\nOrder the final list using the original chronological order in which articles appear in the input (first occurrence wins).\n\n====================================================\nSTRICT OUTPUT FORMAT\n\nReturn ONE JSON object with exactly this structure:\n\n{\n  \"articles\": [\n      {\n        \"title\": \"...\",\n        \"link\": \"...\",\n        \"pubDate\": \"...\",\n        \"summary\": \"...\",\n        \"linkedin_post\": \"...\",\n        \"twitter_post\": \"...\"\n      },\n      ...\n  ]\n}\n\n\nDo NOT wrap objects in additional layers.\n\nDo NOT invent content.\n\nDo NOT alter titles or links.\n\nDo NOT add commentary.\n\nDo NOT output markdown.\n\n\nINPUT ARTICLES\n{{ JSON.stringify($input.all().map(i => i.json), null, 2) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        4416,
+        -8416
+      ],
+      "id": "6cb347ab-2479-40c3-b301-aad3421e4f1e",
+      "name": "Unified Post Merger",
+      "executeOnce": true,
+      "alwaysOutputData": false,
+      "credentials": {
+        "openAiApi": {
+          "id": "fPkRB4FJNr3wCOg3",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Unified Post Merger\n\nCombines LinkedIn + Twitter versions of each article.\n",
+        "width": 262
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        4416,
+        -8592
+      ],
+      "typeVersion": 1,
+      "id": "39d5cfd9-d4b7-4fb4-a8be-af756406512a",
+      "name": "Sticky Note9"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You receive a JSON object with a key \"articles\" that contains a list of selected articles.\n\nYour task is to generate a formatted daily AI news digest email using the structure and formatting rules below.\n\n🎯 OUTPUT FORMAT (required)\n\n📊 Daily Overview\nWrite 3–5 sentences summarizing the day’s AI news trends, based only on the provided articles.\n\n📝 Summary\n<N> articles from <M> sources\n\n📰 Articles\nFor each article, output exactly in this format with no trailing spaces and exactly one blank line between articles:\n\n<Article Title>\nLink: <full article URL>\n\nLinkedIn Post:\n<the linkedin_post field exactly as provided>\n\nTwitter Post:\n<the twitter_post field exactly as provided>\n\n❗Important:\n\nYou MUST include both the LinkedIn and Twitter posts for each article, using the fields `linkedin_post` and `twitter_post`. \nDo NOT modify, rewrite, shorten, or paraphrase these posts. Output them exactly as provided.\n\nThe “Link:” line is required.\n\nFor the Summary section:\nN = the number of article objects in the \"articles\" array  \nM = the number of unique domains extracted from each article’s link  \nYou MUST compute these values from the input, not guess.\n\nFormatting rules:\n- The article title must NOT contain the URL (URL only appears in the “Link:” line).\n- Insert exactly one blank line between articles.\n- Do NOT include source/domain lines.\n- Do NOT include arrows like “(→)”.\n- Do NOT use markdown formatting or trailing spaces.\n- Do NOT reorder articles.\n- Do NOT add commentary.\n- Do NOT number or bullet the articles.\n- Do NOT output HTML — plain text only.\n\n❌ DO NOT:\n- Do NOT output JSON.\n- Do NOT invent or expand summaries.\n- Do NOT merge articles together.\n- Do NOT omit any required line.\n\nINPUT ARTICLES\n{{ JSON.stringify($input.all().map(i => i.json), null, 2) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        4864,
+        -8416
+      ],
+      "id": "e97aa07d-ea79-4f54-a504-99008fcb8ccb",
+      "name": "Email Generator",
+      "executeOnce": false,
+      "alwaysOutputData": false,
+      "credentials": {
+        "openAiApi": {
+          "id": "fPkRB4FJNr3wCOg3",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Email Generator\n\nBuilds the final daily AI news digest email.\n",
+        "height": 128,
+        "width": 246
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        4880,
+        -8560
+      ],
+      "typeVersion": 1,
+      "id": "c94eaede-011b-45f2-a60c-c34bfc5a6ed6",
+      "name": "Sticky Note10"
+    },
+    {
+      "parameters": {
+        "sendTo": "matteo@multimodal.dev",
+        "subject": "=AI News Digest – {{ $now.toFormat(\"yyyy-MM-dd\") }}",
+        "message": "={{$json.emailBody}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        5616,
+        -8416
+      ],
+      "id": "624181ba-e330-4dd9-aaf4-9a80803e64bd",
+      "name": "Email Sender",
+      "webhookId": "75529dad-7d4c-4b63-b2d1-5a4b94061f44",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Ej5t3YQnPJU2725P",
+          "name": "Gmail account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Email HTML Builder\n\nTurns the digest text into HTML for the final email.\n",
+        "height": 128,
+        "width": 246
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        5280,
+        -8560
+      ],
+      "typeVersion": 1,
+      "id": "07a2ac1c-177c-4a60-ac2a-e6c3fe463eb6",
+      "name": "Sticky Note11"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        4128,
+        -8416
+      ],
+      "id": "9277c4fe-2796-4a33-a540-5a6873e1ae93",
+      "name": "Merge Results 2"
+    }
+  ],
+  "pinData": {
+    "Channel_Classifier": [
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "[\n  {\n    \"json\": {\n      \"title\": \"OpenAGI emerges from stealth with an AI agent that it claims crushes OpenAI and Anthropic\",\n      \"link\": \"https://venturebeat.com/ai/openagi-emerges-from-stealth-with-an-ai-agent-that-it-claims-crushes-openai\",\n      \"pubDate\": \"2025-12-01T14:00:00.000Z\",\n      \"author\": \"michael.nunez@venturebeat.com (Michael Nuñez)\",\n      \"summary\": \"A stealth artificial intelligence startup founded by an MIT researcher emerged this morning with an ambitious claim: its new AI model can control computers better than systems built by OpenAI and Anthropic — at a fraction of the cost.\\nOpenAGI, led by chief executive Zengyi Qin, released Lux, a foundation model designed to operate computers autonomously by interpreting screenshots and executing actions across desktop applications. The San Francisco-based company says Lux achieves an 83.6 percent …\"\n    },\n    \"pairedItem\": {\n      \"item\": 0\n    },\n    \"tags\": {\n      \"twitter\": true,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Agent coordination is the missing piece in AI commerce — new AWS and Visa blueprints target the gap\",\n      \"link\": \"https://venturebeat.com/ai/agent-coordination-is-the-missing-piece-in-ai-commerce-new-aws-and-visa\",\n      \"pubDate\": \"2025-12-01T05:00:00.000Z\",\n      \"author\": \"\",\n      \"summary\": \"With some needed infrastructure now being developed for agentic commerce, enterprises will want to figure out how to participate in this new form of buying and selling. But it remains a fragmented Wild West with competing payment protocols, and it's unclear what enterprises need to do to prepare. \\nMore cloud providers and AI model companies will start providing enterprises with the tools needed to begin building systems that enable agentic commerce.\\nAWS, which will list Visa’s Intelligence Comme…\"\n    },\n    \"pairedItem\": {\n      \"item\": 1\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": true\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Hybrid cloud security must be rebuilt for an AI war it was never designed to fight\",\n      \"link\": \"https://venturebeat.com/security/hybrid-cloud-security-reinvented-ai-era\",\n      \"pubDate\": \"2025-11-30T16:00:00.000Z\",\n      \"author\": \"louiswcolumbus@gmail.com (Louis Columbus)\",\n      \"summary\": \"Hybrid cloud security was built before the current era of automated, machine-based cyberattacks that take just milliseconds to execute and minutes to deliver devastating impacts to infrastructure. \\nThe architectures and tech stacks every enterprise depends on, from batch-based detection to siloed tools to 15-minute response windows, stood a better chance of defending against attackers moving at human speed. But in a weaponized AI world, those approaches to analyzing threat data don't make sense.…\"\n    },\n    \"pairedItem\": {\n      \"item\": 2\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": true\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Ontology is the real guardrail: How to stop AI agents from misunderstanding your business\",\n      \"link\": \"https://venturebeat.com/ai/ontology-is-the-real-guardrail-how-to-stop-ai-agents-from-misunderstanding\",\n      \"pubDate\": \"2025-11-30T05:00:00.000Z\",\n      \"author\": \"dattarajraogravitar@gmail.com (Dattaraj Rao, Persistent Systems)\",\n      \"summary\": \"Enterprises are investing billions of dollars in AI agents and infrastructure to transform business processes. However, we are seeing limited success in real-world applications, often due to the inability of agents to truly understand business data, policies and processes. \\nWhile we manage the integrations well with technologies like API management, model context protocol (MCP) and others, having agents truly understand the “meaning” of data in the context of a given businesis a different story.…\"\n    },\n    \"pairedItem\": {\n      \"item\": 3\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": true\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Why observable AI is the missing SRE layer enterprises need for reliable LLMs\",\n      \"link\": \"https://venturebeat.com/ai/why-observable-ai-is-the-missing-sre-layer-enterprises-need-for-reliable\",\n      \"pubDate\": \"2025-11-29T19:00:00.000Z\",\n      \"author\": \"\",\n      \"summary\": \"As AI systems enter production, reliability and governance can’t depend on wishful thinking. Here’s how observability turns large language models (LLMs) into auditable, trustworthy enterprise systems.\\nWhy observability secures the future of enterprise AI\\nThe enterprise race to deploy LLM systems mirrors the early days of cloud adoption. Executives love the promise; compliance demands accountability; engineers just want a paved road.\\nYet, beneath the excitement, most leaders admit they can’t trac…\"\n    },\n    \"pairedItem\": {\n      \"item\": 4\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": true\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Anthropic says it solved the long-running AI agent problem with a new multi-session Claude SDK\",\n      \"link\": \"https://venturebeat.com/ai/anthropic-says-it-solved-the-long-running-ai-agent-problem-with-a-new-multi\",\n      \"pubDate\": \"2025-11-28T19:30:00.000Z\",\n      \"author\": \"\",\n      \"summary\": \"Agent memory remains a problem that enterprises want to fix, as agents forget some instructions or conversations the longer they run. \\nAnthropic believes it has solved this issue for its Claude Agent SDK, developing a two-fold solution that allows an agent to work across different context windows.\\n“The core challenge of long-running agents is that they must work in discrete sessions, and each new session begins with no memory of what came before,” Anthropic wrote in a blog post. “Because context…\"\n    },\n    \"pairedItem\": {\n      \"item\": 5\n    },\n    \"tags\": {\n      \"twitter\": true,\n      \"linkedin\": true\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"What to be thankful for in AI in 2025\",\n      \"link\": \"https://venturebeat.com/ai/what-to-be-thankful-for-in-ai-in-2025\",\n      \"pubDate\": \"2025-11-28T16:19:00.000Z\",\n      \"author\": \"carl.franzen@venturebeat.com (Carl Franzen)\",\n      \"summary\": \"Hello, dear readers. Happy belated Thanksgiving and Black Friday!\\nThis year has felt like living inside a permanent DevDay. Every week, some lab drops a new model, a new agent framework, or a new “this changes everything” demo. It’s overwhelming. But it’s also the first year I’ve felt like AI is finally diversifying — not just one or two frontier models in the cloud, but a whole ecosystem: open and closed, giant and tiny, Western and Chinese, cloud and local.\\nSo for this Thanksgiving edition, he…\"\n    },\n    \"pairedItem\": {\n      \"item\": 6\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"‘Avatar’ director James Cameron says generative AI is ‘horrifying’\",\n      \"link\": \"https://techcrunch.com/2025/11/30/avatar-director-james-cameron-says-generative-ai-is-horrifying/\",\n      \"pubDate\": \"2025-11-30T22:53:15.000Z\",\n      \"author\": \"Anthony Ha\",\n      \"summary\": \"James Cameron’s movies are often at the cutting edge of visual effects technology, but that doesn't make him a fan of generative AI.\"\n    },\n    \"pairedItem\": {\n      \"item\": 7\n    },\n    \"tags\": {\n      \"twitter\": true,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"New report examines how David Sacks might profit from Trump administration role\",\n      \"link\": \"https://techcrunch.com/2025/11/30/new-report-examines-how-david-sacks-might-profit-from-trump-administration-role/\",\n      \"pubDate\": \"2025-11-30T21:39:04.000Z\",\n      \"author\": \"Anthony Ha\",\n      \"summary\": \"David Sacks’ role as President Donald Trump’s artificial intelligence and crypto czar could work out very well for his investments, according to a new report. However, Sacks fired back, calling the story a \\\"nothing burger.\\\"\"\n    },\n    \"pairedItem\": {\n      \"item\": 8\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Black Friday sets online spending record of $11.8B, Adobe says\",\n      \"link\": \"https://techcrunch.com/2025/11/29/black-friday-sets-online-spending-record-of-11-8b-adobe-says/\",\n      \"pubDate\": \"2025-11-29T21:39:44.000Z\",\n      \"author\": \"Anthony Ha\",\n      \"summary\": \"American consumers spent $11.8 billion online on Black Friday, according to data from Adobe Analytics, which says it tracks more than 1 trillion visits to U.S. retail websites.\"\n    },\n    \"pairedItem\": {\n      \"item\": 9\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"No, you can’t get your AI to ‘admit’ to being sexist, but it probably is anyway\",\n      \"link\": \"https://techcrunch.com/2025/11/29/no-you-cant-get-your-ai-to-admit-to-being-sexist-but-it-probably-is/\",\n      \"pubDate\": \"2025-11-29T16:00:00.000Z\",\n      \"author\": \"Dominic-Madori Davis\",\n      \"summary\": \"Though LLMs might not use explicitly biased language, they may infer your demographic data and display implicit biases, researchers say.\"\n    },\n    \"pairedItem\": {\n      \"item\": 10\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"How OpenAI and Google see AI changing go-to-market strategies\",\n      \"link\": \"https://techcrunch.com/2025/11/28/how-openai-and-google-see-ai-changing-go-to-market-strategies/\",\n      \"pubDate\": \"2025-11-28T16:00:00.000Z\",\n      \"author\": \"Tim De Chant\",\n      \"summary\": \"AI is changing how investors and startups bring their products to market. Three experts offered their insights at TechCrunch Disrupt.\"\n    },\n    \"pairedItem\": {\n      \"item\": 11\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"The race to regulate AI has sparked a federal vs state showdown\",\n      \"link\": \"https://techcrunch.com/2025/11/28/the-race-to-regulate-ai-has-sparked-a-federal-vs-state-showdown/\",\n      \"pubDate\": \"2025-11-28T15:00:00.000Z\",\n      \"author\": \"Rebecca Bellan\",\n      \"summary\": \"The fight over AI regulation isn't about the technology -- it's about whether Washington or the states get to set the rules, and what happens to consumers caught in between.\"\n    },\n    \"pairedItem\": {\n      \"item\": 12\n    },\n    \"tags\": {\n      \"twitter\": true,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Flock Uses Overseas Gig Workers to Build Its Surveillance AI\",\n      \"link\": \"https://www.wired.com/story/flock-uses-overseas-gig-workers-to-build-its-surveillance-ai/\",\n      \"pubDate\": \"2025-12-01T14:00:00.000Z\",\n      \"author\": \"Joseph Cox\",\n      \"summary\": \"An accidental leak revealed that Flock, which has cameras in thousands of US communities, is using workers in the Philippines to review and classify footage.\"\n    },\n    \"pairedItem\": {\n      \"item\": 13\n    },\n    \"tags\": {\n      \"twitter\": true,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"20% Squarespace Promo Codes | December 2025\",\n      \"link\": \"https://www.wired.com/story/squarespace-promo-code/\",\n      \"pubDate\": \"2025-12-01T06:00:00.000Z\",\n      \"author\": \"Molly Higgins\",\n      \"summary\": \"Get 10% off your next website with an exclusive Squarespace discount code, with up to 50% off Cyber Week deals on plans, new AI design features, and more top discounts this December.\"\n    },\n    \"pairedItem\": {\n      \"item\": 14\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Runway rolls out new AI video model that beats Google, OpenAI in key benchmark\",\n      \"link\": \"https://www.cnbc.com/2025/12/01/runway-gen-4-5-video-model-google-open-ai.html\",\n      \"pubDate\": \"2025-12-01T14:13:27.000Z\",\n      \"author\": \"\",\n      \"summary\": \"Gen 4.5, a new AI model that allows users to generate high-definition videos based on written prompts.\"\n    },\n    \"pairedItem\": {\n      \"item\": 15\n    },\n    \"tags\": {\n      \"twitter\": true,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Nvidia takes $2 billion stake in Synopsys with expanded computing power partnership\",\n      \"link\": \"https://www.cnbc.com/2025/12/01/nvidia-takes-2-billion-stake-in-synopsys.html\",\n      \"pubDate\": \"2025-12-01T15:13:09.000Z\",\n      \"author\": \"\",\n      \"summary\": \"The two companies are partnering to accelerate computing and AI engineering solutions.\"\n    },\n    \"pairedItem\": {\n      \"item\": 16\n    },\n    \"tags\": {\n      \"twitter\": true,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"How black boxes became key to solving airplane crashes\",\n      \"link\": \"https://www.cnbc.com/2025/11/30/black-box-airplane-crashes.html\",\n      \"pubDate\": \"2025-11-30T19:42:04.000Z\",\n      \"author\": \"\",\n      \"summary\": \"Flight data recorders and cockpit voice recorders, called \\\"black boxes\\\" are nearly indestructible.\"\n    },\n    \"pairedItem\": {\n      \"item\": 17\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Palantir has worst month in two years as AI stocks sell off\",\n      \"link\": \"https://www.cnbc.com/2025/11/28/palantir-ai-selloff-worst-month.html\",\n      \"pubDate\": \"2025-11-28T19:17:27.000Z\",\n      \"author\": \"\",\n      \"summary\": \"Palantir posted strong third-quarter earnings, but shares dropped 16% this month on valuation concerns and a short position from Michael Burry.\"\n    },\n    \"pairedItem\": {\n      \"item\": 18\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Leonardo unveils 'Michelangelo Dome' as Europe looks to bolster sovereign defense systems\",\n      \"link\": \"https://www.cnbc.com/2025/11/28/leonardo-unveils-michelangelo-dome-ai-powered-shield-system.html\",\n      \"pubDate\": \"2025-11-28T10:54:37.000Z\",\n      \"author\": \"\",\n      \"summary\": \"Italian defense company Leonardo unveiled plans for an AI-powered shield for cities and critical infrastructure\"\n    },\n    \"pairedItem\": {\n      \"item\": 19\n    },\n    \"tags\": {\n      \"twitter\": true,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Data-driven seas: Behind the strategic pivot towards data-driven underwriting in marine insurance\",\n      \"link\": \"https://www.insurancebusinessmag.com/us/news/marine/datadriven-seas-behind-the-strategic-pivot-towards-datadriven-underwriting-in-marine-insurance-558409.aspx\",\n      \"pubDate\": \"2025-12-01T13:47:17.000Z\",\n      \"author\": \"\",\n      \"summary\": \"Insurers turning to real-time visibility and aggregation modeling to navigate unprecedented volatility\"\n    },\n    \"pairedItem\": {\n      \"item\": 20\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": true\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"CME Data Center Bolsters Backup Cooling After 10-Hour Outage\",\n      \"link\": \"https://www.insurancejournal.com/news/midwest/2025/12/01/849319.htm\",\n      \"pubDate\": \"2025-12-01T05:26:42.000Z\",\n      \"author\": \"Admin\",\n      \"summary\": \"The data center that supports CME Group Inc., one of the world’s largest derivatives exchanges, said it has bolstered its backup cooling capacity after overheating sparked a catastrophic 10-hour outage that roiled world markets on Friday. CyrusOne — which owns …\"\n    },\n    \"pairedItem\": {\n      \"item\": 21\n    },\n    \"tags\": {\n      \"twitter\": true,\n      \"linkedin\": true\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"70% of Drivers Say They’ve Felt Unfairly Judged by Auto Insurers: Arity Report\",\n      \"link\": \"https://www.insurancejournal.com/magazines/mag-features/2025/12/01/848710.htm\",\n      \"pubDate\": \"2025-12-01T00:00:00.000Z\",\n      \"author\": \"\",\n      \"summary\": \"A new survey reveals consumer frustration with auto insurance pricing models and growing support for more transparency in how policies are priced and for telematics. The new research from mobility data and analytics company Arity suggests that drivers who feel …\"\n    },\n    \"pairedItem\": {\n      \"item\": 22\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": true\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Does Private Equity Create True Value?\",\n      \"link\": \"https://www.insurancejournal.com/magazines/mag-features/2025/12/01/848707.htm\",\n      \"pubDate\": \"2025-12-01T00:00:00.000Z\",\n      \"author\": \"Chris Burand\",\n      \"summary\": \"A study published by Pitchbook (10/4/2025), a trade publication and data source for private equity, showed that private equity buyouts improve portfolio outcomes by 0.64% in annualized excess returns for the last 25 years. However, once the returns were adjusted …\"\n    },\n    \"pairedItem\": {\n      \"item\": 23\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": true\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Building the AI muscle of your business leaders\",\n      \"link\": \"https://www.mckinsey.com/capabilities/tech-and-ai/our-insights/building-the-ai-muscle-of-your-business-leaders\",\n      \"pubDate\": \"2025-12-01T00:00:00.000Z\",\n      \"author\": \"\",\n      \"summary\": \"The real competitive advantage with AI comes from having  business leaders who can bridge business problems with the possibilities technology offers.\"\n    },\n    \"pairedItem\": {\n      \"item\": 24\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": false\n    }\n  }\n]",
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "RSS Feed": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Read": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Time_Filter",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "RSS Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Time_Filter": {
+      "main": [
+        [
+          {
+            "node": "Keyword_Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code22": {
+      "main": [
+        [
+          {
+            "node": "Email Sender",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "RSS Feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keyword_Filter": {
+      "main": [
+        [
+          {
+            "node": "Article_Formatter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Article_Formatter": {
+      "main": [
+        [
+          {
+            "node": "Channel_Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Channel_Classifier": {
+      "main": [
+        [
+          {
+            "node": "Channel Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Channel Router": {
+      "main": [
+        [
+          {
+            "node": "Twitter Bucket",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Linkedin Bucket",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Twitter + Linkedin Bucket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Twitter Bucket": {
+      "main": [
+        [
+          {
+            "node": "Twitter Ranking Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Linkedin Bucket": {
+      "main": [
+        [
+          {
+            "node": "Linkedin Ranking Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Twitter + Linkedin Bucket": {
+      "main": [
+        [
+          {
+            "node": "Twitter + Linkedin Ranking Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Twitter Ranking Engine": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Linkedin Ranking Engine": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Twitter + Linkedin Ranking Engine": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Ranked Results Merger": {
+      "main": [
+        [
+          {
+            "node": "Curator Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Curator Engine": {
+      "main": [
+        [
+          {
+            "node": "JSON Cleaner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JSON Cleaner": {
+      "main": [
+        [
+          {
+            "node": "LinkedIn Post Generator",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Twitter Post Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LinkedIn Post Generator": {
+      "main": [
+        [
+          {
+            "node": "Merge Results 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Twitter Post Generator": {
+      "main": [
+        [
+          {
+            "node": "Merge Results 2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Results": {
+      "main": [
+        [
+          {
+            "node": "Ranked Results Merger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unified Post Merger": {
+      "main": [
+        [
+          {
+            "node": "Email Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Generator": {
+      "main": [
+        [
+          {
+            "node": "Code22",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Results 2": {
+      "main": [
+        [
+          {
+            "node": "Unified Post Merger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3478daff-f363-45f1-a00e-073c3b197187",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "126207c3e8767fe8051b6f75ac4c8973fe94a084d46614cf942b647d9f35dd73"
+  },
+  "id": "jAB8RgcWSwilBmLj",
+  "tags": []
+}
