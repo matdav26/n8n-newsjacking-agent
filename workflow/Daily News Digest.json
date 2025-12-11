@@ -197,19 +197,6 @@
     },
     {
       "parameters": {
-        "jsCode": "// Get content from LLM node\nconst content = $json.message.content || \"\";\n\n// Escape HTML chars\nfunction esc(str) {\n  return str\n    .replace(/&/g, \"&amp;\")\n    .replace(/</g, \"&lt;\")\n    .replace(/>/g, \"&gt;\");\n}\n\nconst lines = content.split(\"\\n\");\n\n// Final HTML components\nlet htmlBlocks = [];\nlet currentArticle = null;\nlet mode = null; // \"linkedin\" or \"twitter\"\n\n// Render section headers\nfunction header(text) {\n  return `<h2 style=\"margin-top:24px;margin-bottom:6px;\">${esc(text)}</h2>`;\n}\n\n// Render entire article\nfunction renderArticle(a) {\n  return `\n<div style=\"margin-bottom:30px;\">\n  <h3 style=\"margin:0 0 6px 0;font-size:18px;\">\n    <a href=\"${a.link}\" style=\"color:#0366d6;text-decoration:none;\">${esc(a.title)}</a>\n  </h3>\n\n  <h4 style=\"margin:10px 0 4px 0;\">LinkedIn Post</h4>\n  <div style=\"white-space:pre-wrap; margin-bottom:12px;\">${esc(a.linkedin.trim())}</div>\n\n  <h4 style=\"margin:10px 0 4px 0;\">Twitter Post</h4>\n  <div style=\"white-space:pre-wrap;\">${esc(a.twitter.trim())}</div>\n</div>`;\n}\n\n// Main parsing loop\nlet i = 0;\nwhile (i < lines.length) {\n  const raw = lines[i];\n  const line = raw.trim();\n\n  // Section headers\n  if (line === \"📊 Daily Overview\" || line === \"📝 Summary\" || line === \"📰 Articles\") {\n    htmlBlocks.push(header(line));\n    i++;\n    continue;\n  }\n\n  // Detect article title (next line must contain Link:)\n  if (i + 1 < lines.length && lines[i + 1].trim().startsWith(\"Link:\")) {\n    if (currentArticle) htmlBlocks.push(renderArticle(currentArticle));\n\n    currentArticle = { title: line, link: \"\", linkedin: \"\", twitter: \"\" };\n    mode = null;\n    i++;\n    continue;\n  }\n\n  // Detect link\n  if (currentArticle && line.startsWith(\"Link:\")) {\n    currentArticle.link = line.replace(\"Link:\", \"\").trim();\n    i++;\n    continue;\n  }\n\n  // Detect LinkedIn Post label\n  if (currentArticle && line === \"LinkedIn Post:\") {\n    mode = \"linkedin\";\n    i++;\n    continue;\n  }\n\n  // Detect Twitter Post label\n  if (currentArticle && line === \"Twitter Post:\") {\n    mode = \"twitter\";\n    i++;\n    continue;\n  }\n\n  // CAPTURE LINKEDIN / TWITTER MULTILINE CONTENT CORRECTLY\n  if (currentArticle && mode) {\n    const next = lines[i + 1]?.trim() || \"\";\n\n    const isNextLabel =\n      next === \"LinkedIn Post:\" ||\n      next === \"Twitter Post:\" ||\n      next === \"📊 Daily Overview\" ||\n      next === \"📝 Summary\" ||\n      next === \"📰 Articles\" ||\n      next.startsWith(\"Link:\");\n\n    // Capture this line\n    if (mode === \"linkedin\") currentArticle.linkedin += raw + \"\\n\";\n    if (mode === \"twitter\") currentArticle.twitter += raw + \"\\n\";\n\n    // If next line changes mode → stop capturing\n    if (isNextLabel) mode = null;\n\n    i++;\n    continue;\n  }\n\n  // Normal paragraph outside article blocks (ignore blank lines)\n  if (line.length > 0) {\n    htmlBlocks.push(`<p>${esc(raw)}</p>`);\n  }\n\n  i++;\n}\n\n// ❗FLUSH LAST ARTICLE (this must be OUTSIDE the loop)\nif (currentArticle) htmlBlocks.push(renderArticle(currentArticle));\n\n// Build final HTML\nconst htmlEmail = `\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\" />\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; padding: 10px; }\n    a:hover { text-decoration: underline; }\n    strong { font-weight: bold; }\n  </style>\n</head>\n<body>\n  ${htmlBlocks.join(\"\\n\")}\n</body>\n</html>\n`;\n\nreturn {\n  json: {\n    emailBody: htmlEmail,\n    emailSubject: \"AI News Digest - \"\n  }\n};\n"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        5360,
-        -8416
-      ],
-      "id": "3ddcad19-6bb1-430b-9798-6fc3ad64d3cd",
-      "name": "Code22"
-    },
-    {
-      "parameters": {
         "rule": {
           "interval": [
             {
@@ -693,19 +680,6 @@
     },
     {
       "parameters": {
-        "numberInputs": 3
-      },
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3.2,
-      "position": [
-        1760,
-        -8448
-      ],
-      "id": "c2f6ba5c-0e85-41c6-b5a6-5ffe3541a1eb",
-      "name": "Merge Results"
-    },
-    {
-      "parameters": {
         "content": "## Post Generators (LinkedIn & Twitter)\n\nCreate platform-specific draft posts for each article.\n• LinkedIn → professional insight, case-based tone  \n• Twitter → concise, buzzy, viral-fit summaries  ",
         "height": 240,
         "width": 246
@@ -778,7 +752,7 @@
         "messages": {
           "values": [
             {
-              "content": "=You receive a JSON object with a key \"articles\" that contains a list of selected articles.\n\nYour task is to generate a formatted daily AI news digest email using the structure and formatting rules below.\n\n🎯 OUTPUT FORMAT (required)\n\n📊 Daily Overview\nWrite 3–5 sentences summarizing the day’s AI news trends, based only on the provided articles.\n\n📝 Summary\n<N> articles from <M> sources\n\n📰 Articles\nFor each article, output exactly in this format with no trailing spaces and exactly one blank line between articles:\n\n<Article Title>\nLink: <full article URL>\n\nLinkedIn Post:\n<the linkedin_post field exactly as provided>\n\nTwitter Post:\n<the twitter_post field exactly as provided>\n\n❗Important:\n\nYou MUST include both the LinkedIn and Twitter posts for each article, using the fields `linkedin_post` and `twitter_post`. \nDo NOT modify, rewrite, shorten, or paraphrase these posts. Output them exactly as provided.\n\nThe “Link:” line is required.\n\nFor the Summary section:\nN = the number of article objects in the \"articles\" array  \nM = the number of unique domains extracted from each article’s link  \nYou MUST compute these values from the input, not guess.\n\nFormatting rules:\n- The article title must NOT contain the URL (URL only appears in the “Link:” line).\n- Insert exactly one blank line between articles.\n- Do NOT include source/domain lines.\n- Do NOT include arrows like “(→)”.\n- Do NOT use markdown formatting or trailing spaces.\n- Do NOT reorder articles.\n- Do NOT add commentary.\n- Do NOT number or bullet the articles.\n- Do NOT output HTML — plain text only.\n\n❌ DO NOT:\n- Do NOT output JSON.\n- Do NOT invent or expand summaries.\n- Do NOT merge articles together.\n- Do NOT omit any required line.\n\nINPUT ARTICLES\n{{ JSON.stringify($input.all().map(i => i.json), null, 2) }}"
+              "content": "=You receive a JSON object with a key \"articles\" that contains a list of selected articles.\n\nYour task is to generate a formatted daily AI news digest email using the structure and formatting rules below.\n\n🎯 OUTPUT FORMAT (required)\n\n📊 Daily Overview\n\nCreate a high-level bulleted overview summarizing the major themes across all articles.\n\nRules:\n• Write 5–7 short lines (no bullet characters).\n• Bullets must be concise (8–15 words) and one sentence each.\n• Include major company/model names (e.g., OpenAI, Anthropic, AWS) when directly relevant.\n• Each bullet should capture one major theme, combining related articles when appropriate.\n• Start bullets with a clear subject (e.g., “OpenAI”, “Enterprises”, “Startups”, “New models…”).\n• Focus on high-level takeaways, not detailed summaries.\n• Use clear newsletter-style language.\n• Do not introduce information that does not exist in the articles.\n• Use fresh wording — do not copy article titles.\n• End every bullet with a period.\n\n🗞️ Headlines\nFor each article, output exactly in this format with no trailing spaces and exactly one blank line between articles:\n\n<Article Title>\nLink: <full article URL>\n\nLinkedIn Post:\n<the linkedin_post field exactly as provided>\n\nTwitter Post:\n<the twitter_post field exactly as provided>\n\n❗Important:\n\nYou MUST include both the LinkedIn and Twitter posts for each article, using the fields `linkedin_post` and `twitter_post`. \nDo NOT modify, rewrite, shorten, or paraphrase these posts. Output them exactly as provided.\n\nThe “Link:” line is required.\n\nFor the Summary section:\nN = the number of article objects in the \"articles\" array  \nM = the number of unique domains extracted from each article’s link  \nYou MUST compute these values from the input, not guess.\n\nFormatting rules:\n- The article title must NOT contain the URL (URL only appears in the “Link:” line).\n- Insert exactly one blank line between articles.\n- Do NOT include source/domain lines.\n- Do NOT include arrows like “(→)”.\n- Do NOT use markdown formatting or trailing spaces.\n- Do NOT reorder articles.\n- Do NOT add commentary.\n- Do NOT number or bullet the articles.\n- Do NOT output HTML — plain text only.\n\n❌ DO NOT:\n- Do NOT output JSON.\n- Do NOT invent or expand summaries.\n- Do NOT merge articles together.\n- Do NOT omit any required line.\n\nINPUT ARTICLES\n{{ JSON.stringify($input.all().map(i => i.json), null, 2) }}"
             }
           ]
         },
@@ -821,17 +795,20 @@
         "sendTo": "matteo@multimodal.dev",
         "subject": "=AI News Digest – {{ $now.toFormat(\"yyyy-MM-dd\") }}",
         "message": "={{$json.emailBody}}",
-        "options": {}
+        "options": {
+          "appendAttribution": false
+        }
       },
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        5616,
+        5632,
         -8416
       ],
       "id": "624181ba-e330-4dd9-aaf4-9a80803e64bd",
       "name": "Email Sender",
       "webhookId": "75529dad-7d4c-4b63-b2d1-5a4b94061f44",
+      "notesInFlow": false,
       "credentials": {
         "gmailOAuth2": {
           "id": "Ej5t3YQnPJU2725P",
@@ -847,12 +824,38 @@
       },
       "type": "n8n-nodes-base.stickyNote",
       "position": [
-        5280,
+        5296,
         -8560
       ],
       "typeVersion": 1,
       "id": "07a2ac1c-177c-4a60-ac2a-e6c3fe463eb6",
       "name": "Sticky Note11"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ======================================\n// INPUT FROM LLM\n// ======================================\nconst content = $json.message.content || \"\";\n\n// Escape HTML safely\nfunction esc(str) {\n  return String(str)\n    .replace(/&/g, \"&amp;\")\n    .replace(/</g, \"&lt;\")\n    .replace(/>/g, \"&gt;\");\n}\n\nconst lines = content.split(\"\\n\").map(l => l.replace(/\\r/g, \"\")); // normalize CRLF\n\n// ======================================\n// STATE VARIABLES\n// ======================================\nlet htmlBlocks = [];\nlet currentArticle = null;\nlet mode = null;\nlet inOverview = false;\nlet inHeadlines = false;\n\n// Normalize label (“LinkedIn Post”, “LinkedIn Post:”, “linkedin post”)\nfunction normalize(label) {\n  return label.toLowerCase().replace(/[^a-z]/g, \"\");\n}\n\n// ======================================\n// HEADER (NOW LEFT-ALIGNED)\n// ======================================\nfunction header(text) {\n  const isHeadlines = text.includes(\"🗞️\");\n  const bottomMargin = isHeadlines ? \"6px\" : \"24px\";\n\n  return `<h2 style=\"text-align:left; margin-top:32px; margin-bottom:${bottomMargin};\">\n    ${esc(text)}\n  </h2>`;\n}\n\n// ======================================\n// RENDER ARTICLE BLOCK\n// ======================================\nfunction renderArticle(a) {\n  return `\n<div style=\"margin-bottom:30px;\">\n  <h3 style=\"margin:0 0 6px 0;font-size:18px;\">\n    <a href=\"${a.link}\" style=\"color:#0366d6;text-decoration:none;\">${esc(a.title)}</a>\n  </h3>\n\n  <h4 style=\"margin:10px 0 4px 0;\">LinkedIn Post</h4>\n  <div style=\"white-space:pre-wrap; margin-bottom:12px;\">${esc(a.linkedin.trim())}</div>\n\n  <h4 style=\"margin:10px 0 4px 0;\">Twitter Post</h4>\n  <div style=\"white-space:pre-wrap;\">${esc(a.twitter.trim())}</div>\n</div>`;\n}\n\n// ======================================\n// FIXED URL EXTRACTION (NO MORE \"0 SOURCES\")\n// ======================================\nconst linkLines = lines\n  .filter(l => /^link\\s*:/i.test(l.trim()))\n  .map(l => l.replace(/^link\\s*:/i, \"\").trim())   // keeps full URL\n  .map(l => l.replace(/[^\\x20-\\x7E]/g, \"\"));       // strip non-printable ASCII\n\nconst numArticles = linkLines.length;\n\n// Extract domain names properly\nconst sourceSet = new Set();\nfor (const lk of linkLines) {\n  const m = lk.match(/https?:\\/\\/([^\\/\\s]+)/i);\n  if (m) sourceSet.add(m[1]);\n}\nconst numSources = sourceSet.size;\n\n// ======================================\n// PARSE CONTENT\n// ======================================\nlet i = 0;\nwhile (i < lines.length) {\n  const raw = lines[i];\n  const line = raw.trim();\n  const norm = normalize(line);\n\n  // ------------ DAILY OVERVIEW ------------\n  if (line === \"📊 Daily Overview\") {\n    htmlBlocks.push(header(line));\n    inOverview = true;\n    inHeadlines = false;\n\n    htmlBlocks.push(`<div style=\"margin-top:14px;\"></div>`);\n    i++;\n    continue;\n  }\n\n  // ------------ HEADLINES SECTION ------------\n  if (line === \"🗞️ Headlines\") {\n    inOverview = false;\n    inHeadlines = true;\n\n    htmlBlocks.push(header(line));\n\n    // Left-aligned headline count\n    htmlBlocks.push(\n      `<div style=\"text-align:left; margin-top:-10px; margin-bottom:22px; color:#555;\">\n        (${numArticles} articles from ${numSources} sources)\n      </div>`\n    );\n\n    i++;\n    continue;\n  }\n\n  // ------------ ARTICLE TITLE DETECTION ------------\n  const next = lines[i + 1]?.trim() || \"\";\n  if (/^link\\s*:/i.test(next)) {\n    if (currentArticle) htmlBlocks.push(renderArticle(currentArticle));\n\n    currentArticle = { title: line, link: \"\", linkedin: \"\", twitter: \"\" };\n    mode = null;\n    inOverview = false;\n\n    i++;\n    continue;\n  }\n\n  // ------------ LINK ------------\n  if (currentArticle && /^link\\s*:/i.test(line)) {\n    currentArticle.link = line.replace(/^link\\s*:/i, \"\").trim().replace(/[^\\x20-\\x7E]/g, \"\");\n    i++;\n    continue;\n  }\n\n  // ------------ LINKEDIN / TWITTER LABELS ------------\n  if (currentArticle && norm === \"linkedinpost\") {\n    mode = \"linkedin\";\n    i++;\n    continue;\n  }\n\n  if (currentArticle && norm === \"twitterpost\") {\n    mode = \"twitter\";\n    i++;\n    continue;\n  }\n\n  // ------------ CAPTURE SOCIAL TEXT ------------\n  if (currentArticle && mode) {\n    const nextTrim = lines[i + 1]?.trim() || \"\";\n    const nextNorm = normalize(nextTrim);\n\n    const nextIsLabel =\n      nextNorm === \"linkedinpost\" ||\n      nextNorm === \"twitterpost\" ||\n      /^link\\s*:/i.test(nextTrim) ||\n      nextTrim === \"📊 Daily Overview\" ||\n      nextTrim === \"🗞️ Headlines\";\n\n    if (mode === \"linkedin\") currentArticle.linkedin += raw + \"\\n\";\n    if (mode === \"twitter\") currentArticle.twitter += raw + \"\\n\";\n\n    if (nextIsLabel) mode = null;\n\n    i++;\n    continue;\n  }\n\n  // ------------ OVERVIEW BULLETS ------------\n  if (line.length > 0) {\n    if (inOverview) {\n      htmlBlocks.push(`\n<ul style=\"margin-top:6px; margin-bottom:14px; padding-left:20px;\">\n  <li>${esc(line)}</li>\n</ul>`);\n    } else {\n      htmlBlocks.push(`<p>${esc(raw)}</p>`);\n    }\n  }\n\n  i++;\n}\n\n// ======================================\n// FLUSH LAST ARTICLE\n// ======================================\nif (currentArticle) htmlBlocks.push(renderArticle(currentArticle));\n\n// ======================================\n// FINAL HTML OUTPUT\n// ======================================\nconst htmlEmail = `\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\" />\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; padding: 10px; }\n    a:hover { text-decoration: underline; }\n  </style>\n</head>\n<body>\n  ${htmlBlocks.join(\"\\n\")}\n</body>\n</html>\n`;\n\nreturn {\n  json: {\n    emailBody: htmlEmail,\n    emailSubject: \"AI News Digest - \"\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5376,
+        -8416
+      ],
+      "id": "3ddcad19-6bb1-430b-9798-6fc3ad64d3cd",
+      "name": "Email HTML Builder"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1760,
+        -8448
+      ],
+      "id": "c2f6ba5c-0e85-41c6-b5a6-5ffe3541a1eb",
+      "name": "Merge Rankings"
     },
     {
       "parameters": {},
@@ -863,26 +866,10 @@
         -8416
       ],
       "id": "9277c4fe-2796-4a33-a540-5a6873e1ae93",
-      "name": "Merge Results 2"
+      "name": "Merge Posts"
     }
   ],
-  "pinData": {
-    "Channel_Classifier": [
-      {
-        "json": {
-          "index": 0,
-          "message": {
-            "role": "assistant",
-            "content": "[\n  {\n    \"json\": {\n      \"title\": \"OpenAGI emerges from stealth with an AI agent that it claims crushes OpenAI and Anthropic\",\n      \"link\": \"https://venturebeat.com/ai/openagi-emerges-from-stealth-with-an-ai-agent-that-it-claims-crushes-openai\",\n      \"pubDate\": \"2025-12-01T14:00:00.000Z\",\n      \"author\": \"michael.nunez@venturebeat.com (Michael Nuñez)\",\n      \"summary\": \"A stealth artificial intelligence startup founded by an MIT researcher emerged this morning with an ambitious claim: its new AI model can control computers better than systems built by OpenAI and Anthropic — at a fraction of the cost.\\nOpenAGI, led by chief executive Zengyi Qin, released Lux, a foundation model designed to operate computers autonomously by interpreting screenshots and executing actions across desktop applications. The San Francisco-based company says Lux achieves an 83.6 percent …\"\n    },\n    \"pairedItem\": {\n      \"item\": 0\n    },\n    \"tags\": {\n      \"twitter\": true,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Agent coordination is the missing piece in AI commerce — new AWS and Visa blueprints target the gap\",\n      \"link\": \"https://venturebeat.com/ai/agent-coordination-is-the-missing-piece-in-ai-commerce-new-aws-and-visa\",\n      \"pubDate\": \"2025-12-01T05:00:00.000Z\",\n      \"author\": \"\",\n      \"summary\": \"With some needed infrastructure now being developed for agentic commerce, enterprises will want to figure out how to participate in this new form of buying and selling. But it remains a fragmented Wild West with competing payment protocols, and it's unclear what enterprises need to do to prepare. \\nMore cloud providers and AI model companies will start providing enterprises with the tools needed to begin building systems that enable agentic commerce.\\nAWS, which will list Visa’s Intelligence Comme…\"\n    },\n    \"pairedItem\": {\n      \"item\": 1\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": true\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Hybrid cloud security must be rebuilt for an AI war it was never designed to fight\",\n      \"link\": \"https://venturebeat.com/security/hybrid-cloud-security-reinvented-ai-era\",\n      \"pubDate\": \"2025-11-30T16:00:00.000Z\",\n      \"author\": \"louiswcolumbus@gmail.com (Louis Columbus)\",\n      \"summary\": \"Hybrid cloud security was built before the current era of automated, machine-based cyberattacks that take just milliseconds to execute and minutes to deliver devastating impacts to infrastructure. \\nThe architectures and tech stacks every enterprise depends on, from batch-based detection to siloed tools to 15-minute response windows, stood a better chance of defending against attackers moving at human speed. But in a weaponized AI world, those approaches to analyzing threat data don't make sense.…\"\n    },\n    \"pairedItem\": {\n      \"item\": 2\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": true\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Ontology is the real guardrail: How to stop AI agents from misunderstanding your business\",\n      \"link\": \"https://venturebeat.com/ai/ontology-is-the-real-guardrail-how-to-stop-ai-agents-from-misunderstanding\",\n      \"pubDate\": \"2025-11-30T05:00:00.000Z\",\n      \"author\": \"dattarajraogravitar@gmail.com (Dattaraj Rao, Persistent Systems)\",\n      \"summary\": \"Enterprises are investing billions of dollars in AI agents and infrastructure to transform business processes. However, we are seeing limited success in real-world applications, often due to the inability of agents to truly understand business data, policies and processes. \\nWhile we manage the integrations well with technologies like API management, model context protocol (MCP) and others, having agents truly understand the “meaning” of data in the context of a given businesis a different story.…\"\n    },\n    \"pairedItem\": {\n      \"item\": 3\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": true\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Why observable AI is the missing SRE layer enterprises need for reliable LLMs\",\n      \"link\": \"https://venturebeat.com/ai/why-observable-ai-is-the-missing-sre-layer-enterprises-need-for-reliable\",\n      \"pubDate\": \"2025-11-29T19:00:00.000Z\",\n      \"author\": \"\",\n      \"summary\": \"As AI systems enter production, reliability and governance can’t depend on wishful thinking. Here’s how observability turns large language models (LLMs) into auditable, trustworthy enterprise systems.\\nWhy observability secures the future of enterprise AI\\nThe enterprise race to deploy LLM systems mirrors the early days of cloud adoption. Executives love the promise; compliance demands accountability; engineers just want a paved road.\\nYet, beneath the excitement, most leaders admit they can’t trac…\"\n    },\n    \"pairedItem\": {\n      \"item\": 4\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": true\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Anthropic says it solved the long-running AI agent problem with a new multi-session Claude SDK\",\n      \"link\": \"https://venturebeat.com/ai/anthropic-says-it-solved-the-long-running-ai-agent-problem-with-a-new-multi\",\n      \"pubDate\": \"2025-11-28T19:30:00.000Z\",\n      \"author\": \"\",\n      \"summary\": \"Agent memory remains a problem that enterprises want to fix, as agents forget some instructions or conversations the longer they run. \\nAnthropic believes it has solved this issue for its Claude Agent SDK, developing a two-fold solution that allows an agent to work across different context windows.\\n“The core challenge of long-running agents is that they must work in discrete sessions, and each new session begins with no memory of what came before,” Anthropic wrote in a blog post. “Because context…\"\n    },\n    \"pairedItem\": {\n      \"item\": 5\n    },\n    \"tags\": {\n      \"twitter\": true,\n      \"linkedin\": true\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"What to be thankful for in AI in 2025\",\n      \"link\": \"https://venturebeat.com/ai/what-to-be-thankful-for-in-ai-in-2025\",\n      \"pubDate\": \"2025-11-28T16:19:00.000Z\",\n      \"author\": \"carl.franzen@venturebeat.com (Carl Franzen)\",\n      \"summary\": \"Hello, dear readers. Happy belated Thanksgiving and Black Friday!\\nThis year has felt like living inside a permanent DevDay. Every week, some lab drops a new model, a new agent framework, or a new “this changes everything” demo. It’s overwhelming. But it’s also the first year I’ve felt like AI is finally diversifying — not just one or two frontier models in the cloud, but a whole ecosystem: open and closed, giant and tiny, Western and Chinese, cloud and local.\\nSo for this Thanksgiving edition, he…\"\n    },\n    \"pairedItem\": {\n      \"item\": 6\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"‘Avatar’ director James Cameron says generative AI is ‘horrifying’\",\n      \"link\": \"https://techcrunch.com/2025/11/30/avatar-director-james-cameron-says-generative-ai-is-horrifying/\",\n      \"pubDate\": \"2025-11-30T22:53:15.000Z\",\n      \"author\": \"Anthony Ha\",\n      \"summary\": \"James Cameron’s movies are often at the cutting edge of visual effects technology, but that doesn't make him a fan of generative AI.\"\n    },\n    \"pairedItem\": {\n      \"item\": 7\n    },\n    \"tags\": {\n      \"twitter\": true,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"New report examines how David Sacks might profit from Trump administration role\",\n      \"link\": \"https://techcrunch.com/2025/11/30/new-report-examines-how-david-sacks-might-profit-from-trump-administration-role/\",\n      \"pubDate\": \"2025-11-30T21:39:04.000Z\",\n      \"author\": \"Anthony Ha\",\n      \"summary\": \"David Sacks’ role as President Donald Trump’s artificial intelligence and crypto czar could work out very well for his investments, according to a new report. However, Sacks fired back, calling the story a \\\"nothing burger.\\\"\"\n    },\n    \"pairedItem\": {\n      \"item\": 8\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Black Friday sets online spending record of $11.8B, Adobe says\",\n      \"link\": \"https://techcrunch.com/2025/11/29/black-friday-sets-online-spending-record-of-11-8b-adobe-says/\",\n      \"pubDate\": \"2025-11-29T21:39:44.000Z\",\n      \"author\": \"Anthony Ha\",\n      \"summary\": \"American consumers spent $11.8 billion online on Black Friday, according to data from Adobe Analytics, which says it tracks more than 1 trillion visits to U.S. retail websites.\"\n    },\n    \"pairedItem\": {\n      \"item\": 9\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"No, you can’t get your AI to ‘admit’ to being sexist, but it probably is anyway\",\n      \"link\": \"https://techcrunch.com/2025/11/29/no-you-cant-get-your-ai-to-admit-to-being-sexist-but-it-probably-is/\",\n      \"pubDate\": \"2025-11-29T16:00:00.000Z\",\n      \"author\": \"Dominic-Madori Davis\",\n      \"summary\": \"Though LLMs might not use explicitly biased language, they may infer your demographic data and display implicit biases, researchers say.\"\n    },\n    \"pairedItem\": {\n      \"item\": 10\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"How OpenAI and Google see AI changing go-to-market strategies\",\n      \"link\": \"https://techcrunch.com/2025/11/28/how-openai-and-google-see-ai-changing-go-to-market-strategies/\",\n      \"pubDate\": \"2025-11-28T16:00:00.000Z\",\n      \"author\": \"Tim De Chant\",\n      \"summary\": \"AI is changing how investors and startups bring their products to market. Three experts offered their insights at TechCrunch Disrupt.\"\n    },\n    \"pairedItem\": {\n      \"item\": 11\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"The race to regulate AI has sparked a federal vs state showdown\",\n      \"link\": \"https://techcrunch.com/2025/11/28/the-race-to-regulate-ai-has-sparked-a-federal-vs-state-showdown/\",\n      \"pubDate\": \"2025-11-28T15:00:00.000Z\",\n      \"author\": \"Rebecca Bellan\",\n      \"summary\": \"The fight over AI regulation isn't about the technology -- it's about whether Washington or the states get to set the rules, and what happens to consumers caught in between.\"\n    },\n    \"pairedItem\": {\n      \"item\": 12\n    },\n    \"tags\": {\n      \"twitter\": true,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Flock Uses Overseas Gig Workers to Build Its Surveillance AI\",\n      \"link\": \"https://www.wired.com/story/flock-uses-overseas-gig-workers-to-build-its-surveillance-ai/\",\n      \"pubDate\": \"2025-12-01T14:00:00.000Z\",\n      \"author\": \"Joseph Cox\",\n      \"summary\": \"An accidental leak revealed that Flock, which has cameras in thousands of US communities, is using workers in the Philippines to review and classify footage.\"\n    },\n    \"pairedItem\": {\n      \"item\": 13\n    },\n    \"tags\": {\n      \"twitter\": true,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"20% Squarespace Promo Codes | December 2025\",\n      \"link\": \"https://www.wired.com/story/squarespace-promo-code/\",\n      \"pubDate\": \"2025-12-01T06:00:00.000Z\",\n      \"author\": \"Molly Higgins\",\n      \"summary\": \"Get 10% off your next website with an exclusive Squarespace discount code, with up to 50% off Cyber Week deals on plans, new AI design features, and more top discounts this December.\"\n    },\n    \"pairedItem\": {\n      \"item\": 14\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Runway rolls out new AI video model that beats Google, OpenAI in key benchmark\",\n      \"link\": \"https://www.cnbc.com/2025/12/01/runway-gen-4-5-video-model-google-open-ai.html\",\n      \"pubDate\": \"2025-12-01T14:13:27.000Z\",\n      \"author\": \"\",\n      \"summary\": \"Gen 4.5, a new AI model that allows users to generate high-definition videos based on written prompts.\"\n    },\n    \"pairedItem\": {\n      \"item\": 15\n    },\n    \"tags\": {\n      \"twitter\": true,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Nvidia takes $2 billion stake in Synopsys with expanded computing power partnership\",\n      \"link\": \"https://www.cnbc.com/2025/12/01/nvidia-takes-2-billion-stake-in-synopsys.html\",\n      \"pubDate\": \"2025-12-01T15:13:09.000Z\",\n      \"author\": \"\",\n      \"summary\": \"The two companies are partnering to accelerate computing and AI engineering solutions.\"\n    },\n    \"pairedItem\": {\n      \"item\": 16\n    },\n    \"tags\": {\n      \"twitter\": true,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"How black boxes became key to solving airplane crashes\",\n      \"link\": \"https://www.cnbc.com/2025/11/30/black-box-airplane-crashes.html\",\n      \"pubDate\": \"2025-11-30T19:42:04.000Z\",\n      \"author\": \"\",\n      \"summary\": \"Flight data recorders and cockpit voice recorders, called \\\"black boxes\\\" are nearly indestructible.\"\n    },\n    \"pairedItem\": {\n      \"item\": 17\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Palantir has worst month in two years as AI stocks sell off\",\n      \"link\": \"https://www.cnbc.com/2025/11/28/palantir-ai-selloff-worst-month.html\",\n      \"pubDate\": \"2025-11-28T19:17:27.000Z\",\n      \"author\": \"\",\n      \"summary\": \"Palantir posted strong third-quarter earnings, but shares dropped 16% this month on valuation concerns and a short position from Michael Burry.\"\n    },\n    \"pairedItem\": {\n      \"item\": 18\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Leonardo unveils 'Michelangelo Dome' as Europe looks to bolster sovereign defense systems\",\n      \"link\": \"https://www.cnbc.com/2025/11/28/leonardo-unveils-michelangelo-dome-ai-powered-shield-system.html\",\n      \"pubDate\": \"2025-11-28T10:54:37.000Z\",\n      \"author\": \"\",\n      \"summary\": \"Italian defense company Leonardo unveiled plans for an AI-powered shield for cities and critical infrastructure\"\n    },\n    \"pairedItem\": {\n      \"item\": 19\n    },\n    \"tags\": {\n      \"twitter\": true,\n      \"linkedin\": false\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Data-driven seas: Behind the strategic pivot towards data-driven underwriting in marine insurance\",\n      \"link\": \"https://www.insurancebusinessmag.com/us/news/marine/datadriven-seas-behind-the-strategic-pivot-towards-datadriven-underwriting-in-marine-insurance-558409.aspx\",\n      \"pubDate\": \"2025-12-01T13:47:17.000Z\",\n      \"author\": \"\",\n      \"summary\": \"Insurers turning to real-time visibility and aggregation modeling to navigate unprecedented volatility\"\n    },\n    \"pairedItem\": {\n      \"item\": 20\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": true\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"CME Data Center Bolsters Backup Cooling After 10-Hour Outage\",\n      \"link\": \"https://www.insurancejournal.com/news/midwest/2025/12/01/849319.htm\",\n      \"pubDate\": \"2025-12-01T05:26:42.000Z\",\n      \"author\": \"Admin\",\n      \"summary\": \"The data center that supports CME Group Inc., one of the world’s largest derivatives exchanges, said it has bolstered its backup cooling capacity after overheating sparked a catastrophic 10-hour outage that roiled world markets on Friday. CyrusOne — which owns …\"\n    },\n    \"pairedItem\": {\n      \"item\": 21\n    },\n    \"tags\": {\n      \"twitter\": true,\n      \"linkedin\": true\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"70% of Drivers Say They’ve Felt Unfairly Judged by Auto Insurers: Arity Report\",\n      \"link\": \"https://www.insurancejournal.com/magazines/mag-features/2025/12/01/848710.htm\",\n      \"pubDate\": \"2025-12-01T00:00:00.000Z\",\n      \"author\": \"\",\n      \"summary\": \"A new survey reveals consumer frustration with auto insurance pricing models and growing support for more transparency in how policies are priced and for telematics. The new research from mobility data and analytics company Arity suggests that drivers who feel …\"\n    },\n    \"pairedItem\": {\n      \"item\": 22\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": true\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Does Private Equity Create True Value?\",\n      \"link\": \"https://www.insurancejournal.com/magazines/mag-features/2025/12/01/848707.htm\",\n      \"pubDate\": \"2025-12-01T00:00:00.000Z\",\n      \"author\": \"Chris Burand\",\n      \"summary\": \"A study published by Pitchbook (10/4/2025), a trade publication and data source for private equity, showed that private equity buyouts improve portfolio outcomes by 0.64% in annualized excess returns for the last 25 years. However, once the returns were adjusted …\"\n    },\n    \"pairedItem\": {\n      \"item\": 23\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": true\n    }\n  },\n  {\n    \"json\": {\n      \"title\": \"Building the AI muscle of your business leaders\",\n      \"link\": \"https://www.mckinsey.com/capabilities/tech-and-ai/our-insights/building-the-ai-muscle-of-your-business-leaders\",\n      \"pubDate\": \"2025-12-01T00:00:00.000Z\",\n      \"author\": \"\",\n      \"summary\": \"The real competitive advantage with AI comes from having  business leaders who can bridge business problems with the possibilities technology offers.\"\n    },\n    \"pairedItem\": {\n      \"item\": 24\n    },\n    \"tags\": {\n      \"twitter\": false,\n      \"linkedin\": false\n    }\n  }\n]",
-            "refusal": null,
-            "annotations": []
-          },
-          "logprobs": null,
-          "finish_reason": "stop"
-        }
-      }
-    ]
-  },
+  "pinData": {},
   "connections": {
     "RSS Feed": {
       "main": [
@@ -929,17 +916,6 @@
         [
           {
             "node": "Keyword_Filter",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code22": {
-      "main": [
-        [
-          {
-            "node": "Email Sender",
             "type": "main",
             "index": 0
           }
@@ -1048,7 +1024,7 @@
       "main": [
         [
           {
-            "node": "Merge Results",
+            "node": "Merge Rankings",
             "type": "main",
             "index": 0
           }
@@ -1059,7 +1035,7 @@
       "main": [
         [
           {
-            "node": "Merge Results",
+            "node": "Merge Rankings",
             "type": "main",
             "index": 1
           }
@@ -1070,7 +1046,7 @@
       "main": [
         [
           {
-            "node": "Merge Results",
+            "node": "Merge Rankings",
             "type": "main",
             "index": 2
           }
@@ -1119,7 +1095,7 @@
       "main": [
         [
           {
-            "node": "Merge Results 2",
+            "node": "Merge Posts",
             "type": "main",
             "index": 0
           }
@@ -1130,20 +1106,9 @@
       "main": [
         [
           {
-            "node": "Merge Results 2",
+            "node": "Merge Posts",
             "type": "main",
             "index": 1
-          }
-        ]
-      ]
-    },
-    "Merge Results": {
-      "main": [
-        [
-          {
-            "node": "Ranked Results Merger",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -1163,14 +1128,36 @@
       "main": [
         [
           {
-            "node": "Code22",
+            "node": "Email HTML Builder",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Merge Results 2": {
+    "Email HTML Builder": {
+      "main": [
+        [
+          {
+            "node": "Email Sender",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Rankings": {
+      "main": [
+        [
+          {
+            "node": "Ranked Results Merger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Posts": {
       "main": [
         [
           {
@@ -1186,7 +1173,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "3478daff-f363-45f1-a00e-073c3b197187",
+  "versionId": "888133ff-6d70-4790-8384-bb4ef2aa37d6",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "126207c3e8767fe8051b6f75ac4c8973fe94a084d46614cf942b647d9f35dd73"
